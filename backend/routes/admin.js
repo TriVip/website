@@ -2,7 +2,7 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../config/database');
+const { dbGet } = require('../config/database');
 const router = express.Router();
 
 // Middleware to verify admin token
@@ -17,16 +17,17 @@ const verifyAdminToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Verify admin user exists and is active
-    const result = await pool.query(
-      'SELECT id, email, name, role FROM admin_users WHERE id = $1 AND is_active = true',
+    const { dbGet } = require('../config/database');
+    const admin = await dbGet(
+      'SELECT id, email, name, role FROM admin_users WHERE id = ? AND is_active = 1',
       [decoded.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (!admin) {
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    req.admin = result.rows[0];
+    req.admin = admin;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
@@ -39,35 +40,48 @@ router.post('/login', [
   body('password').isLength({ min: 6 })
 ], async (req, res) => {
   try {
+    console.log('🔐 Login attempt for:', req.body.email);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
+    console.log('✅ Request body parsed successfully');
 
-    const result = await pool.query(
-      'SELECT id, email, password_hash, name, role FROM admin_users WHERE email = $1 AND is_active = true',
+    // Use SQLite database functions instead of pool.query
+    console.log('🔍 Searching for admin user:', email);
+    const admin = await dbGet(
+      'SELECT id, email, password_hash, name, role FROM admin_users WHERE email = ? AND is_active = 1',
       [email]
     );
+    console.log('📊 Admin found:', admin ? 'Yes' : 'No');
 
-    if (result.rows.length === 0) {
+    if (!admin) {
+      console.log('❌ Admin not found');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const admin = result.rows[0];
+    console.log('🔑 Verifying password...');
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
+    console.log('✅ Password valid:', isValidPassword);
 
     if (!isValidPassword) {
+      console.log('❌ Invalid password');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log('🎫 Creating JWT token...');
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024',
       { expiresIn: '24h' }
     );
+    console.log('✅ Token created, length:', token.length);
 
+    console.log('📤 Sending response...');
     res.json({
       message: 'Login successful',
       token,
@@ -80,13 +94,17 @@ router.post('/login', [
     });
 
   } catch (error) {
-    console.error('Error during admin login:', error);
+    console.error('❌ Error during admin login:', error.message);
+    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// Apply admin middleware to all routes below
-router.use(verifyAdminToken);
+// Apply admin middleware to all routes below (except login)
+router.use('/dashboard', verifyAdminToken);
+router.use('/orders', verifyAdminToken);
+router.use('/products', verifyAdminToken);
+router.use('/profile', verifyAdminToken);
 
 // GET /api/admin/orders - Get all orders
 router.get('/orders', [
@@ -100,61 +118,51 @@ router.get('/orders', [
     // Get admin user info
     const adminUser = req.admin;
 
-    let query = `
-      SELECT o.*, 
-      json_agg(
-        json_build_object(
-          'id', oi.id,
-          'product_id', oi.product_id,
-          'quantity', oi.quantity,
-          'price_at_purchase', oi.price_at_purchase,
-          'product_name', p.name,
-          'product_image', p.image_urls[1]
-        )
-      ) as items
-      FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN products p ON oi.product_id = p.id
-    `;
+    // Use SQLite database functions
+    const { dbAll } = require('../config/database');
 
+    let whereClause = '';
     const queryParams = [];
-    let paramCount = 0;
 
     if (status) {
-      paramCount++;
-      query += ` WHERE o.status = $${paramCount}`;
+      whereClause = 'WHERE o.status = ?';
       queryParams.push(status);
     }
 
-    query += ` GROUP BY o.id ORDER BY o.created_at DESC`;
-
     const offset = (page - 1) * limit;
-    paramCount++;
-    query += ` LIMIT $${paramCount}`;
-    queryParams.push(limit);
-    
-    paramCount++;
-    query += ` OFFSET $${paramCount}`;
-    queryParams.push(offset);
+    queryParams.push(limit, offset);
 
-    const result = await pool.query(query, queryParams);
+    // Get orders with items
+    const ordersQuery = `
+      SELECT o.*,
+             '[' || GROUP_CONCAT(
+               '{"id":' || oi.id || ',"product_id":' || oi.product_id || ',"quantity":' || oi.quantity || ',"price_at_purchase":' || oi.price_at_purchase || ',"product_name":"' || IFNULL(p.name, '') || '","product_image":"' || IFNULL(p.image_urls, '') || '"}'
+             ) || ']' as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      ${whereClause}
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const orders = await dbAll(ordersQuery, queryParams);
+
+    // Parse items JSON for each order
+    const ordersWithItems = orders.map(order => ({
+      ...order,
+      items: order.items ? JSON.parse(order.items) : []
+    }));
 
     // Get total count
-    let countQuery = 'SELECT COUNT(*) FROM orders';
-    const countParams = [];
-    let countParamCount = 0;
-
-    if (status) {
-      countParamCount++;
-      countQuery += ` WHERE status = $${countParamCount}`;
-      countParams.push(status);
-    }
-
-    const countResult = await pool.query(countQuery, countParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const countQuery = `SELECT COUNT(*) as count FROM orders ${whereClause}`;
+    const countParams = status ? [status] : [];
+    const countResult = await dbAll(countQuery, countParams);
+    const totalCount = countResult[0].count;
 
     res.json({
-      orders: result.rows,
+      orders: ordersWithItems,
       user: {
         id: adminUser.id,
         email: adminUser.email,
@@ -188,18 +196,24 @@ router.put('/orders/:id', [
     const { id } = req.params;
     const { status } = req.body;
 
-    const result = await pool.query(
-      'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+    // Use SQLite database functions
+    const { dbRun, dbGet } = require('../config/database');
+
+    const result = await dbRun(
+      'UPDATE orders SET status = ?, updated_at = datetime("now") WHERE id = ?',
       [status, id]
     );
 
-    if (result.rows.length === 0) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
+    // Get updated order
+    const updatedOrder = await dbGet('SELECT * FROM orders WHERE id = ?', [id]);
+
     res.json({
       message: 'Order status updated successfully',
-      order: result.rows[0]
+      order: updatedOrder
     });
 
   } catch (error) {
@@ -219,18 +233,21 @@ router.get('/products', [
     // Get admin user info
     const adminUser = req.admin;
 
+    // Use SQLite database functions
+    const { dbAll } = require('../config/database');
+
     const offset = (page - 1) * limit;
 
-    const result = await pool.query(
-      'SELECT * FROM products ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+    const products = await dbAll(
+      'SELECT * FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?',
       [limit, offset]
     );
 
-    const countResult = await pool.query('SELECT COUNT(*) FROM products');
-    const totalCount = parseInt(countResult.rows[0].count);
+    const countResult = await dbAll('SELECT COUNT(*) as count FROM products');
+    const totalCount = countResult[0].count;
 
     res.json({
-      products: result.rows,
+      products: products,
       user: {
         id: adminUser.id,
         email: adminUser.email,

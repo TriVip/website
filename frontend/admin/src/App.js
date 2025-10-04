@@ -29,7 +29,7 @@ function App() {
             <Route path="/login" element={<AdminLoginPage />} />
 
             {/* Protected Admin Routes */}
-            <Route path="/oms" element={<AdminLayout />}>
+            <Route path="/" element={<AdminLayout />}>
               <Route path="dashboard" element={<AdminDashboardPage />} />
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
