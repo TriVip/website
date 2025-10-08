@@ -2,22 +2,80 @@ const express = require('express');
 const { body, validationResult, query } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { dbGet } = require('../config/database');
+const { dbGet, dbAll, dbRun } = require('../config/database');
 const router = express.Router();
+
+const parseProduct = (product) => {
+  if (!product) return null;
+
+  const safeParse = (value, fallback) => {
+    try {
+      return JSON.parse(value || fallback);
+    } catch (error) {
+      return fallback === '[]' ? [] : {};
+    }
+  };
+
+  return {
+    ...product,
+    image_urls: safeParse(product.image_urls, '[]'),
+    scent_notes: safeParse(product.scent_notes, '{}'),
+    is_featured: Boolean(product.is_featured),
+    is_active: Boolean(product.is_active)
+  };
+};
+
+const parseFirstImage = (imageJson) => {
+  try {
+    const images = JSON.parse(imageJson || '[]');
+    return images.length > 0 ? images[0] : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const fetchOrderItems = async (orderId) => {
+  const rows = await dbAll(
+    `SELECT oi.*, p.name as product_name, p.image_urls
+     FROM order_items oi
+     LEFT JOIN products p ON oi.product_id = p.id
+     WHERE oi.order_id = ?`,
+    [orderId]
+  );
+
+  return rows.map((item) => ({
+    id: item.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    price_at_purchase: item.price_at_purchase,
+    product_name: item.product_name,
+    product_image: parseFirstImage(item.image_urls)
+  }));
+};
+
+const requireRole = (...roles) => (req, res, next) => {
+  const userRole = req.admin?.role;
+
+  if (!userRole || !roles.includes(userRole)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  next();
+};
 
 // Middleware to verify admin token
 const verifyAdminToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024';
+    const decoded = jwt.verify(token, jwtSecret);
     
     // Verify admin user exists and is active
-    const { dbGet } = require('../config/database');
     const admin = await dbGet(
       'SELECT id, email, name, role FROM admin_users WHERE id = ? AND is_active = 1',
       [decoded.userId]
@@ -40,48 +98,32 @@ router.post('/login', [
   body('password').isLength({ min: 6 })
 ], async (req, res) => {
   try {
-    console.log('🔐 Login attempt for:', req.body.email);
-
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
-    console.log('✅ Request body parsed successfully');
-
-    // Use SQLite database functions instead of pool.query
-    console.log('🔍 Searching for admin user:', email);
     const admin = await dbGet(
       'SELECT id, email, password_hash, name, role FROM admin_users WHERE email = ? AND is_active = 1',
       [email]
     );
-    console.log('📊 Admin found:', admin ? 'Yes' : 'No');
 
     if (!admin) {
-      console.log('❌ Admin not found');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('🔑 Verifying password...');
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-    console.log('✅ Password valid:', isValidPassword);
 
     if (!isValidPassword) {
-      console.log('❌ Invalid password');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('🎫 Creating JWT token...');
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
       process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024',
       { expiresIn: '24h' }
     );
-    console.log('✅ Token created, length:', token.length);
-
-    console.log('📤 Sending response...');
     res.json({
       message: 'Login successful',
       token,
@@ -95,7 +137,6 @@ router.post('/login', [
 
   } catch (error) {
     console.error('❌ Error during admin login:', error.message);
-    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -107,59 +148,51 @@ router.use('/products', verifyAdminToken);
 router.use('/profile', verifyAdminToken);
 
 // GET /api/admin/orders - Get all orders
-router.get('/orders', [
+router.get('/orders',
+  requireRole('admin', 'sale'),
+  [
   query('status').optional().isString(),
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 })
-], async (req, res) => {
+  ],
+async (req, res) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
 
-    // Get admin user info
     const adminUser = req.admin;
 
-    // Use SQLite database functions
-    const { dbAll } = require('../config/database');
+    const pageNumber = parseInt(page, 10) || 1;
+    const limitNumber = parseInt(limit, 10) || 20;
+    const offset = (pageNumber - 1) * limitNumber;
 
-    let whereClause = '';
-    const queryParams = [];
+    const filters = [];
+    const filterParams = [];
 
     if (status) {
-      whereClause = 'WHERE o.status = ?';
-      queryParams.push(status);
+      filters.push('o.status = ?');
+      filterParams.push(status);
     }
 
-    const offset = (page - 1) * limit;
-    queryParams.push(limit, offset);
+    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
-    // Get orders with items
-    const ordersQuery = `
-      SELECT o.*,
-             '[' || GROUP_CONCAT(
-               '{"id":' || oi.id || ',"product_id":' || oi.product_id || ',"quantity":' || oi.quantity || ',"price_at_purchase":' || oi.price_at_purchase || ',"product_name":"' || IFNULL(p.name, '') || '","product_image":"' || IFNULL(p.image_urls, '') || '"}'
-             ) || ']' as items
-      FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN products p ON oi.product_id = p.id
-      ${whereClause}
-      GROUP BY o.id
-      ORDER BY o.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
+    const orders = await dbAll(
+      `SELECT o.* FROM orders o ${whereClause} ORDER BY o.created_at DESC LIMIT ? OFFSET ?`,
+      [...filterParams, limitNumber, offset]
+    );
 
-    const orders = await dbAll(ordersQuery, queryParams);
+    const totalCountRow = await dbGet(
+      `SELECT COUNT(*) as count FROM orders o ${whereClause}`,
+      filterParams
+    );
 
-    // Parse items JSON for each order
-    const ordersWithItems = orders.map(order => ({
-      ...order,
-      items: order.items ? JSON.parse(order.items) : []
-    }));
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => ({
+        ...order,
+        items: await fetchOrderItems(order.id)
+      }))
+    );
 
-    // Get total count
-    const countQuery = `SELECT COUNT(*) as count FROM orders ${whereClause}`;
-    const countParams = status ? [status] : [];
-    const countResult = await dbAll(countQuery, countParams);
-    const totalCount = countResult[0].count;
+    const totalCount = Number(totalCountRow?.count || 0);
 
     res.json({
       orders: ordersWithItems,
@@ -170,10 +203,10 @@ router.get('/orders', [
         role: adminUser.role
       },
       pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(totalCount / limit),
+        current_page: pageNumber,
+        total_pages: Math.ceil(totalCount / limitNumber),
         total_count: totalCount,
-        limit: parseInt(limit)
+        limit: limitNumber
       }
     });
 
@@ -184,9 +217,12 @@ router.get('/orders', [
 });
 
 // PUT /api/admin/orders/:id - Update order status
-router.put('/orders/:id', [
+router.put('/orders/:id',
+  requireRole('admin', 'sale'),
+  [
   body('status').isIn(['pending', 'paid', 'shipped', 'delivered', 'cancelled'])
-], async (req, res) => {
+  ],
+async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -195,9 +231,6 @@ router.put('/orders/:id', [
 
     const { id } = req.params;
     const { status } = req.body;
-
-    // Use SQLite database functions
-    const { dbRun, dbGet } = require('../config/database');
 
     const result = await dbRun(
       'UPDATE orders SET status = ?, updated_at = datetime("now") WHERE id = ?',
@@ -223,31 +256,34 @@ router.put('/orders/:id', [
 });
 
 // GET /api/admin/products - Get all products for admin
-router.get('/products', [
+router.get('/products',
+  requireRole('admin'),
+  [
   query('page').optional().isInt({ min: 1 }),
   query('limit').optional().isInt({ min: 1, max: 100 })
-], async (req, res) => {
+  ],
+async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+
+    const pageNumber = parseInt(page, 10) || 1;
+    const limitNumber = parseInt(limit, 10) || 20;
 
     // Get admin user info
     const adminUser = req.admin;
 
-    // Use SQLite database functions
-    const { dbAll } = require('../config/database');
+    const offset = (pageNumber - 1) * limitNumber;
 
-    const offset = (page - 1) * limit;
-
-    const products = await dbAll(
+    const productRows = await dbAll(
       'SELECT * FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?',
-      [limit, offset]
+      [limitNumber, offset]
     );
 
-    const countResult = await dbAll('SELECT COUNT(*) as count FROM products');
-    const totalCount = countResult[0].count;
+    const countResult = await dbGet('SELECT COUNT(*) as count FROM products');
+    const totalCount = countResult?.count || 0;
 
     res.json({
-      products: products,
+      products: productRows.map(parseProduct),
       user: {
         id: adminUser.id,
         email: adminUser.email,
@@ -255,10 +291,10 @@ router.get('/products', [
         role: adminUser.role
       },
       pagination: {
-        current_page: parseInt(page),
-        total_pages: Math.ceil(totalCount / limit),
+        current_page: pageNumber,
+        total_pages: Math.ceil(totalCount / limitNumber),
         total_count: totalCount,
-        limit: parseInt(limit)
+        limit: limitNumber
       }
     });
 
@@ -269,7 +305,9 @@ router.get('/products', [
 });
 
 // POST /api/admin/products - Create new product
-router.post('/products', [
+router.post('/products',
+  requireRole('admin'),
+  [
   body('name').notEmpty().trim().isLength({ min: 2, max: 255 }),
   body('brand').notEmpty().trim().isLength({ min: 2, max: 100 }),
   body('description').notEmpty().trim(),
@@ -279,7 +317,8 @@ router.post('/products', [
   body('category').optional().isString().trim(),
   body('is_featured').optional().isBoolean(),
   body('scent_notes').optional().isObject()
-], async (req, res) => {
+  ],
+async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -299,18 +338,29 @@ router.post('/products', [
       is_featured = false
     } = req.body;
 
-    const result = await pool.query(
-      `INSERT INTO products (name, brand, description, price, image_urls, stock_quantity, 
+    const result = await dbRun(
+      `INSERT INTO products (name, brand, description, price, image_urls, stock_quantity,
        scent_notes, volume_ml, category, is_featured)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
-      [name, brand, description, price, image_urls, stock_quantity, 
-       JSON.stringify(scent_notes), volume_ml, category, is_featured]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        brand,
+        description,
+        price,
+        JSON.stringify(image_urls),
+        stock_quantity,
+        JSON.stringify(scent_notes),
+        volume_ml,
+        category,
+        is_featured ? 1 : 0
+      ]
     );
+
+    const product = await dbGet('SELECT * FROM products WHERE id = ?', [result.lastID]);
 
     res.status(201).json({
       message: 'Product created successfully',
-      product: result.rows[0]
+      product: parseProduct(product)
     });
 
   } catch (error) {
@@ -320,7 +370,9 @@ router.post('/products', [
 });
 
 // PUT /api/admin/products/:id - Update product
-router.put('/products/:id', [
+router.put('/products/:id',
+  requireRole('admin'),
+  [
   body('name').optional().trim().isLength({ min: 2, max: 255 }),
   body('brand').optional().trim().isLength({ min: 2, max: 100 }),
   body('description').optional().trim(),
@@ -331,7 +383,8 @@ router.put('/products/:id', [
   body('is_featured').optional().isBoolean(),
   body('is_active').optional().isBoolean(),
   body('scent_notes').optional().isObject()
-], async (req, res) => {
+  ],
+async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -344,40 +397,50 @@ router.put('/products/:id', [
     // Build dynamic query
     const setClause = [];
     const values = [];
-    let paramCount = 0;
 
-    Object.keys(updateFields).forEach(key => {
-      if (updateFields[key] !== undefined) {
-        paramCount++;
-        setClause.push(`${key} = $${paramCount}`);
-        
-        if (key === 'scent_notes') {
-          values.push(JSON.stringify(updateFields[key]));
-        } else {
-          values.push(updateFields[key]);
-        }
+    Object.entries(updateFields).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
       }
+
+      let processedValue = value;
+
+      if (key === 'scent_notes') {
+        processedValue = JSON.stringify(value);
+      }
+
+      if (key === 'image_urls') {
+        processedValue = JSON.stringify(value);
+      }
+
+      if (key === 'is_featured' || key === 'is_active') {
+        processedValue = value ? 1 : 0;
+      }
+
+      setClause.push(`${key} = ?`);
+      values.push(processedValue);
     });
 
     if (setClause.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    paramCount++;
-    setClause.push(`updated_at = CURRENT_TIMESTAMP`);
+    setClause.push('updated_at = CURRENT_TIMESTAMP');
     values.push(id);
 
-    const query = `UPDATE products SET ${setClause.join(', ')} WHERE id = $${paramCount} RETURNING *`;
-    
-    const result = await pool.query(query, values);
+    const query = `UPDATE products SET ${setClause.join(', ')} WHERE id = ?`;
 
-    if (result.rows.length === 0) {
+    const result = await dbRun(query, values);
+
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    const product = await dbGet('SELECT * FROM products WHERE id = ?', [id]);
+
     res.json({
       message: 'Product updated successfully',
-      product: result.rows[0]
+      product: parseProduct(product)
     });
 
   } catch (error) {
@@ -387,22 +450,21 @@ router.put('/products/:id', [
 });
 
 // DELETE /api/admin/products/:id - Delete product
-router.delete('/products/:id', async (req, res) => {
+router.delete('/products/:id', requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM products WHERE id = $1 RETURNING *',
-      [id]
-    );
+    const product = await dbGet('SELECT * FROM products WHERE id = ?', [id]);
 
-    if (result.rows.length === 0) {
+    if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    await dbRun('DELETE FROM products WHERE id = ?', [id]);
+
     res.json({
       message: 'Product deleted successfully',
-      product: result.rows[0]
+      product: parseProduct(product)
     });
 
   } catch (error) {
@@ -412,44 +474,49 @@ router.delete('/products/:id', async (req, res) => {
 });
 
 // GET /api/admin/dashboard - Get dashboard statistics
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', requireRole('admin'), async (req, res) => {
   try {
-    // Get admin user info
     const adminUser = req.admin;
-    const [
-      totalProducts,
-      totalOrders,
-      totalRevenue,
-      recentOrders
-    ] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM products WHERE is_active = true'),
-      pool.query('SELECT COUNT(*) FROM orders'),
-      pool.query('SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status != \'cancelled\''),
-      pool.query(`
-        SELECT o.*, 
-        json_agg(
-          json_build_object(
-            'product_name', p.name,
-            'quantity', oi.quantity,
-            'price_at_purchase', oi.price_at_purchase
-          )
-        ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        LEFT JOIN products p ON oi.product_id = p.id
-        GROUP BY o.id
-        ORDER BY o.created_at DESC
-        LIMIT 5
-      `)
+
+    const [totalProducts, totalOrders, totalRevenue] = await Promise.all([
+      dbGet('SELECT COUNT(*) as count FROM products WHERE is_active = 1'),
+      dbGet('SELECT COUNT(*) as count FROM orders'),
+      dbGet("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled'")
     ]);
+
+    const recentOrderRows = await dbAll(
+      'SELECT * FROM orders ORDER BY created_at DESC LIMIT 5'
+    );
+
+    const recentOrders = await Promise.all(
+      recentOrderRows.map(async (order) => {
+        const items = await dbAll(
+          `SELECT oi.*, p.name as product_name, p.image_urls
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           WHERE oi.order_id = ?`,
+          [order.id]
+        );
+
+        return {
+          ...order,
+          items: items.map((item) => ({
+            product_name: item.product_name,
+            quantity: item.quantity,
+            price_at_purchase: item.price_at_purchase,
+            product_image: parseFirstImage(item.image_urls)
+          }))
+        };
+      })
+    );
 
     res.json({
       stats: {
-        total_products: parseInt(totalProducts.rows[0].count),
-        total_orders: parseInt(totalOrders.rows[0].count),
-        total_revenue: parseFloat(totalRevenue.rows[0].coalesce)
+        total_products: Number(totalProducts?.count || 0),
+        total_orders: Number(totalOrders?.count || 0),
+        total_revenue: Number(totalRevenue?.total || 0)
       },
-      recent_orders: recentOrders.rows,
+      recent_orders: recentOrders,
       user: {
         id: adminUser.id,
         email: adminUser.email,
