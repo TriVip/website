@@ -25,11 +25,22 @@ const AdminLoginPage = () => {
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      const response = await adminLogin(data);
-      
+      const payload = {
+        email: data.email.trim(),
+        password: data.password,
+      };
+
+      const response = await adminLogin(payload);
+
       // Store token
-      localStorage.setItem('adminToken', response.token);
-      
+      if (rememberMe) {
+        localStorage.setItem('adminToken', response.token);
+        sessionStorage.removeItem('adminToken');
+      } else {
+        sessionStorage.setItem('adminToken', response.token);
+        localStorage.removeItem('adminToken');
+      }
+
       toast.success('Đăng nhập thành công!');
       navigate('/admin/dashboard');
       
@@ -85,7 +96,8 @@ const AdminLoginPage = () => {
                   })}
                   className={`input-field pr-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : emailValue && !errors.email ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : ''}`}
                   placeholder="admin@rareparfume.com"
-                  defaultValue="admin@rareparfume.com"
+                  autoComplete="email"
+                  inputMode="email"
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   {emailValue && !errors.email && (
@@ -120,7 +132,7 @@ const AdminLoginPage = () => {
                   })}
                   className={`input-field pr-12 ${errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : passwordValue && !errors.password ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : ''}`}
                   placeholder="Nhập mật khẩu"
-                  defaultValue="admin123"
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"

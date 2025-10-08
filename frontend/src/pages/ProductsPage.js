@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useQuery } from 'react-query';
 import { Search, Filter, Grid, List, SlidersHorizontal } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import LayoutContainer from '../components/LayoutContainer';
 import { fetchProducts, fetchBrands, fetchCategories } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -21,6 +22,7 @@ const ProductsPage = () => {
   const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(filters.search);
 
   // Fetch brands and categories
   const { data: brands = [] } = useQuery('brands', fetchBrands);
@@ -49,6 +51,10 @@ const ProductsPage = () => {
     setSearchParams(params);
   }, [filters, currentPage, setSearchParams]);
 
+  useEffect(() => {
+    setSearchInput(filters.search);
+  }, [filters.search]);
+
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
@@ -56,8 +62,8 @@ const ProductsPage = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    const searchValue = e.target.search.value;
-    handleFilterChange('search', searchValue);
+    const trimmedValue = searchInput.trim();
+    handleFilterChange('search', trimmedValue);
   };
 
   const clearFilters = () => {
@@ -71,6 +77,7 @@ const ProductsPage = () => {
       featured: '',
     });
     setCurrentPage(1);
+    setSearchInput('');
   };
 
   const hasActiveFilters = Object.values(filters).some(value => value !== '');
@@ -90,7 +97,7 @@ const ProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <LayoutContainer className="py-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Tất cả sản phẩm</h1>
@@ -106,6 +113,7 @@ const ProductsPage = () => {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
                 <button
+                  type="button"
                   onClick={() => setShowFilters(false)}
                   className="lg:hidden p-1 hover:bg-gray-100 rounded"
                 >
@@ -114,13 +122,16 @@ const ProductsPage = () => {
               </div>
 
               {/* Search */}
-              <form onSubmit={handleSearch} className="mb-4">
+              <form onSubmit={handleSearch} className="mb-4" role="search" aria-label="Lọc sản phẩm theo tên">
                 <div className="relative">
                   <input
                     type="text"
-                    name="search"
                     placeholder="Tìm kiếm sản phẩm..."
-                    defaultValue={filters.search}
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    autoComplete="off"
+                    inputMode="search"
+                    aria-label="Tìm kiếm sản phẩm"
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   />
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -173,6 +184,8 @@ const ProductsPage = () => {
                 <div className="space-y-2">
                   <input
                     type="number"
+                    min="0"
+                    inputMode="decimal"
                     placeholder="Giá tối thiểu"
                     value={filters.min_price}
                     onChange={(e) => handleFilterChange('min_price', e.target.value)}
@@ -180,6 +193,8 @@ const ProductsPage = () => {
                   />
                   <input
                     type="number"
+                    min="0"
+                    inputMode="decimal"
                     placeholder="Giá tối đa"
                     value={filters.max_price}
                     onChange={(e) => handleFilterChange('max_price', e.target.value)}
@@ -215,6 +230,7 @@ const ProductsPage = () => {
                     checked={filters.featured === 'true'}
                     onChange={(e) => handleFilterChange('featured', e.target.checked ? 'true' : '')}
                     className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    aria-checked={filters.featured === 'true'}
                   />
                   <span className="ml-2 text-sm text-gray-700">Chỉ sản phẩm nổi bật</span>
                 </label>
@@ -223,6 +239,7 @@ const ProductsPage = () => {
               {/* Clear Filters */}
               {hasActiveFilters && (
                 <button
+                  type="button"
                   onClick={clearFilters}
                   className="w-full py-2 px-4 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-300"
                 >
@@ -239,13 +256,14 @@ const ProductsPage = () => {
               <div className="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
                   <button
+                    type="button"
                     onClick={() => setShowFilters(!showFilters)}
                     className="lg:hidden flex items-center space-x-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
                   >
                     <Filter className="w-4 h-4" />
                     <span>Bộ lọc</span>
                   </button>
-                  
+
                   {pagination.total_count && (
                     <span className="text-xs sm:text-sm text-gray-600">
                       Hiển thị {products.length} trong tổng số {pagination.total_count} sản phẩm
@@ -256,18 +274,22 @@ const ProductsPage = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-xs sm:text-sm text-gray-600">Xem:</span>
                   <button
+                    type="button"
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded-lg ${
                       viewMode === 'grid' ? 'bg-amber-100 text-amber-600' : 'text-gray-400 hover:text-gray-600'
                     }`}
+                    aria-pressed={viewMode === 'grid'}
                   >
                     <Grid className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-lg ${
                       viewMode === 'list' ? 'bg-amber-100 text-amber-600' : 'text-gray-400 hover:text-gray-600'
                     }`}
+                    aria-pressed={viewMode === 'list'}
                   >
                     <List className="w-4 h-4" />
                   </button>
@@ -328,17 +350,18 @@ const ProductsPage = () => {
                 {pagination.total_pages > 1 && (
                   <div className="flex justify-center items-center space-x-2 mt-8">
                     <button
+                      type="button"
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
                       className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                     >
                       Trước
                     </button>
-                    
+
                     {[...Array(pagination.total_pages)].map((_, index) => {
                       const page = index + 1;
                       const isCurrentPage = page === currentPage;
-                      
+
                       // Show only a few pages around current page
                       if (
                         page === 1 ||
@@ -348,6 +371,7 @@ const ProductsPage = () => {
                         return (
                           <button
                             key={page}
+                            type="button"
                             onClick={() => setCurrentPage(page)}
                             className={`px-4 py-2 rounded-lg ${
                               isCurrentPage
@@ -366,8 +390,9 @@ const ProductsPage = () => {
                       }
                       return null;
                     })}
-                    
+
                     <button
+                      type="button"
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.total_pages))}
                       disabled={currentPage === pagination.total_pages}
                       className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -380,7 +405,7 @@ const ProductsPage = () => {
             )}
           </div>
         </div>
-      </div>
+      </LayoutContainer>
     </div>
   );
 };

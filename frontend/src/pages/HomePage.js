@@ -5,6 +5,7 @@ import { useInView } from 'react-intersection-observer';
 import { ArrowRight, Star, Sparkles, Heart } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import BlogCard from '../components/BlogCard';
+import LayoutContainer from '../components/LayoutContainer';
 import { useQuery } from 'react-query';
 import { fetchProducts, fetchBlogPosts } from '../services/api';
 
@@ -66,7 +67,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section 
+      <section
         ref={heroRef}
         className="relative min-h-[80vh] flex items-center justify-center overflow-hidden hero-gradient"
       >
@@ -146,8 +147,8 @@ const HomePage = () => {
       </section>
 
       {/* Featured Products Section */}
-      <section ref={featuredRef} className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section ref={featuredRef} className="py-12 sm:py-16 bg-white">
+        <LayoutContainer>
           <motion.div
             initial="hidden"
             animate={featuredInView ? "visible" : "hidden"}
@@ -207,12 +208,12 @@ const HomePage = () => {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
             </Link>
           </motion.div>
-        </div>
+        </LayoutContainer>
       </section>
 
       {/* Brand Story Section */}
-      <section className="py-12 bg-gradient-to-br from-amber-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-16 bg-gradient-to-br from-amber-50 to-white">
+        <LayoutContainer>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
@@ -265,12 +266,12 @@ const HomePage = () => {
               <div className="absolute -top-6 -right-6 w-32 h-32 bg-amber-600 rounded-full opacity-10"></div>
             </motion.div>
           </div>
-        </div>
+        </LayoutContainer>
       </section>
 
       {/* Blog Section */}
-      <section ref={blogRef} className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section ref={blogRef} className="py-12 sm:py-16 bg-white">
+        <LayoutContainer>
           <motion.div
             initial="hidden"
             animate={blogInView ? "visible" : "hidden"}
@@ -330,12 +331,13 @@ const HomePage = () => {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
             </Link>
           </motion.div>
-        </div>
+        </LayoutContainer>
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-amber-600 to-amber-800">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-16 bg-gradient-to-r from-amber-600 to-amber-800">
+        <LayoutContainer className="flex justify-center">
+          <div className="w-full max-w-4xl text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -363,7 +365,8 @@ const HomePage = () => {
               </Link>
             </div>
           </motion.div>
-        </div>
+          </div>
+        </LayoutContainer>
       </section>
     </div>
   );

@@ -7,6 +7,10 @@ import toast from 'react-hot-toast';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
+  const parsedPrice = Number(product.price ?? 0);
+  const formattedPrice = Number.isFinite(parsedPrice)
+    ? parsedPrice.toFixed(2)
+    : product.price;
 
   const handleAddToCart = (e) => {
     e.preventDefault();
@@ -42,22 +46,28 @@ const ProductCard = ({ product }) => {
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
               <div className="flex space-x-2">
                 <button
+                  type="button"
                   onClick={handleAddToCart}
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
                   title="Thêm vào giỏ hàng"
+                  aria-label={`Thêm ${product.name} vào giỏ hàng`}
                 >
                   <ShoppingCart className="w-5 h-5 text-gray-700" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleQuickView}
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
                   title="Xem nhanh"
+                  aria-label={`Xem nhanh ${product.name}`}
                 >
                   <Eye className="w-5 h-5 text-gray-700" />
                 </button>
                 <button
+                  type="button"
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors duration-300"
                   title="Yêu thích"
+                  aria-label={`Thêm ${product.name} vào danh sách yêu thích`}
                 >
                   <Heart className="w-5 h-5 text-gray-700 hover:text-red-500" />
                 </button>
@@ -94,7 +104,7 @@ const ProductCard = ({ product }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1">
                 <span className="text-base font-bold text-gray-900">
-                  ${product.price}
+                  ${formattedPrice}
                 </span>
                 <span className="text-xs text-gray-500">
                   {product.volume_ml}ml
