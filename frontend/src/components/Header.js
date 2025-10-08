@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Menu, X, User } from 'lucide-react';
+import { Search, ShoppingCart, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 const Header = () => {
@@ -9,6 +9,8 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { getTotalItems } = useCart();
   const navigate = useNavigate();
+
+  const sanitizeSearchQuery = (value) => value.replace(/[<>]/g, '').trim();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -19,11 +21,25 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    document.body.classList.toggle('overflow-hidden', isMenuOpen);
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+    };
+  }, [isMenuOpen]);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+    const sanitized = sanitizeSearchQuery(searchQuery);
+    if (sanitized) {
+      navigate(`/products?search=${encodeURIComponent(sanitized)}`);
       setSearchQuery('');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape' && isMenuOpen) {
+      setIsMenuOpen(false);
     }
   };
 
@@ -74,16 +90,18 @@ const Header = () => {
 
           {/* Search Bar */}
           <div className="hidden md:flex items-center flex-1 max-w-md mx-6">
-            <form onSubmit={handleSearch} className="w-full">
+            <form onSubmit={handleSearch} className="w-full" role="search" aria-label="Tìm kiếm sản phẩm">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Tìm kiếm nước hoa..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setSearchQuery(sanitizeSearchQuery(e.target.value))}
+                  autoComplete="off"
+                  aria-label="Tìm kiếm nước hoa"
                   className={`w-full pl-10 pr-4 py-2.5 rounded-full border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-lg ${
-                    isScrolled 
-                      ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500' 
+                    isScrolled
+                      ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                       : 'bg-white/95 border-white/30 text-gray-900 placeholder-gray-600'
                   }`}
                 />
@@ -115,10 +133,12 @@ const Header = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className={`lg:hidden p-2.5 rounded-full transition-all duration-300 hover:scale-110 ${
-                isScrolled 
-                  ? 'text-gray-700 hover:bg-amber-50 hover:text-amber-600' 
+                isScrolled
+                  ? 'text-gray-700 hover:bg-amber-50 hover:text-amber-600'
                   : 'text-white hover:bg-white/20'
               }`}
+              aria-expanded={isMenuOpen}
+              aria-label={isMenuOpen ? 'Đóng menu' : 'Mở menu'}
             >
               {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -127,16 +147,17 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="lg:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white/95 backdrop-blur-md rounded-lg mt-2 shadow-xl border border-gray-200">
+          <div className="lg:hidden" onKeyDown={handleKeyDown}>
+            <div className="px-2 pt-2 pb-3 space-y-3 bg-white/95 backdrop-blur-md rounded-lg mt-2 shadow-xl border border-gray-200">
               {/* Mobile Search */}
-              <form onSubmit={handleSearch} className="px-3 py-2">
+              <form onSubmit={handleSearch} className="px-3 py-2" role="search" aria-label="Tìm kiếm sản phẩm trên di động">
                 <div className="relative">
                   <input
                     type="text"
                     placeholder="Tìm kiếm nước hoa..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(sanitizeSearchQuery(e.target.value))}
+                    autoComplete="off"
                     className="w-full pl-10 pr-4 py-2.5 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-gray-900 shadow-lg"
                   />
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-amber-500 w-4 h-4" />

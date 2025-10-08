@@ -66,9 +66,10 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section 
+      <section
         ref={heroRef}
-        className="relative min-h-[80vh] flex items-center justify-center overflow-hidden hero-gradient"
+        className="relative min-h-[80vh] flex items-center justify-center overflow-hidden hero-gradient pt-24 sm:pt-32"
+        aria-labelledby="homepage-hero"
       >
         {/* Background Gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-amber-900/20">
@@ -80,7 +81,7 @@ const HomePage = () => {
           initial="hidden"
           animate={heroInView ? "visible" : "hidden"}
           variants={containerVariants}
-          className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto py-12 sm:py-16 lg:py-20"
+          className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto pb-16 sm:pb-20"
         >
           <motion.div variants={itemVariants} className="mb-6 sm:mb-8">
             <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 sm:px-6 sm:py-3 mb-6 sm:mb-8">
@@ -89,23 +90,24 @@ const HomePage = () => {
             </div>
           </motion.div>
 
-           <motion.h1 
-             variants={itemVariants}
-             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight"
-           >
-             <span className="block sm:inline">Tìm Mùi Hương</span>{' '}
-             <span className="text-gradient block sm:inline">Đặc Trưng</span>
-             <br />
-             <span className="block sm:inline">Của Bạn</span>
+          <motion.h1
+            variants={itemVariants}
+            id="homepage-hero"
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 mb-6 sm:mb-8 leading-tight"
+          >
+            <span className="block sm:inline">Tìm Mùi Hương</span>{' '}
+            <span className="text-gradient block sm:inline">Đặc Trưng</span>
+            <br />
+            <span className="block sm:inline">Của Bạn</span>
            </motion.h1>
 
-           <motion.p 
-             variants={itemVariants}
-             className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed px-4 sm:px-6 lg:px-0"
-           >
-             Khám phá bộ sưu tập nước hoa niche độc đáo và sang trọng. 
-             Mỗi mùi hương đều kể một câu chuyện riêng, tạo nên dấu ấn không thể quên.
-           </motion.p>
+          <motion.p
+            variants={itemVariants}
+            className="text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed px-4 sm:px-6 lg:px-0"
+          >
+            Khám phá bộ sưu tập nước hoa niche độc đáo và sang trọng.
+            Mỗi mùi hương đều kể một câu chuyện riêng, tạo nên dấu ấn không thể quên.
+          </motion.p>
 
           <motion.div 
             variants={itemVariants}
@@ -146,7 +148,7 @@ const HomePage = () => {
       </section>
 
       {/* Featured Products Section */}
-      <section ref={featuredRef} className="py-12 bg-white">
+      <section ref={featuredRef} className="py-16 sm:py-20 bg-white" aria-labelledby="featured-products">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -160,17 +162,18 @@ const HomePage = () => {
                 <span className="text-sm font-medium text-amber-800">Sản phẩm nổi bật</span>
               </div>
             </motion.div>
-             <motion.h2 
-               variants={itemVariants}
-               className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3 px-4 sm:px-0"
-             >
-               Bộ Sưu Tập Đặc Biệt
-             </motion.h2>
-             <motion.p 
-               variants={itemVariants}
-               className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-4 sm:px-0"
-             >
-               Những mùi hương được yêu thích nhất, được chọn lọc kỹ lưỡng từ các thương hiệu nước hoa hàng đầu thế giới.
+            <motion.h2
+              variants={itemVariants}
+              id="featured-products"
+              className="text-3xl font-bold text-gray-900 mb-3 px-4 sm:px-0"
+            >
+              Bộ Sưu Tập Đặc Biệt
+            </motion.h2>
+            <motion.p
+              variants={itemVariants}
+              className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto px-4 sm:px-0"
+            >
+              Những mùi hương được yêu thích nhất, được chọn lọc kỹ lưỡng từ các thương hiệu nước hoa hàng đầu thế giới.
              </motion.p>
           </motion.div>
 
@@ -183,9 +186,9 @@ const HomePage = () => {
               initial="hidden"
               animate={featuredInView ? "visible" : "hidden"}
               variants={containerVariants}
-               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8"
             >
-              {featuredProducts.slice(0, 8).map((product, index) => (
+              {featuredProducts.slice(0, 8).map((product) => (
                 <motion.div key={product.id} variants={itemVariants}>
                   <ProductCard product={product} />
                 </motion.div>
@@ -197,7 +200,7 @@ const HomePage = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={featuredInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
             transition={{ delay: 0.8, duration: 0.6 }}
-            className="text-center mt-8"
+            className="text-center mt-10"
           >
             <Link
               to="/products"
@@ -211,7 +214,7 @@ const HomePage = () => {
       </section>
 
       {/* Brand Story Section */}
-      <section className="py-12 bg-gradient-to-br from-amber-50 to-white">
+      <section className="py-16 sm:py-20 bg-gradient-to-br from-amber-50 to-white" aria-labelledby="brand-story">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <motion.div
@@ -225,21 +228,21 @@ const HomePage = () => {
                   <Sparkles className="w-4 h-4 text-amber-600" />
                   <span className="text-sm font-medium text-amber-800">Câu chuyện thương hiệu</span>
                 </div>
-                 <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                   Rare Parfume - Nơi Mùi Hương Trở Thành Nghệ Thuật
-                 </h2>
-                 <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4">
-                   Từ năm 2020, Rare Parfume đã không ngừng tìm kiếm và mang đến những mùi hương 
-                   độc đáo nhất từ khắp nơi trên thế giới. Chúng tôi tin rằng mỗi người đều có một 
+                <h2 id="brand-story" className="text-3xl font-bold text-gray-900 mb-4">
+                  Rare Parfume - Nơi Mùi Hương Trở Thành Nghệ Thuật
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-4">
+                  Từ năm 2020, Rare Parfume đã không ngừng tìm kiếm và mang đến những mùi hương
+                  độc đáo nhất từ khắp nơi trên thế giới. Chúng tôi tin rằng mỗi người đều có một
                    mùi hương đặc trưng riêng, và nhiệm vụ của chúng tôi là giúp bạn tìm thấy nó.
                  </p>
                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed mb-6">
                    Với đội ngũ chuyên gia có kinh nghiệm lâu năm trong ngành nước hoa, chúng tôi 
                    cam kết mang đến những sản phẩm chất lượng cao nhất và trải nghiệm mua sắm tuyệt vời.
-                 </p>
+                </p>
                 <Link
                   to="/about"
-                  className="btn-primary inline-flex items-center space-x-2"
+                  className="btn-primary"
                 >
                   <span>Tìm hiểu thêm</span>
                   <ArrowRight className="w-5 h-5" />
@@ -269,7 +272,7 @@ const HomePage = () => {
       </section>
 
       {/* Blog Section */}
-      <section ref={blogRef} className="py-12 bg-white">
+      <section ref={blogRef} className="py-16 sm:py-20 bg-white" aria-labelledby="recent-blogs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial="hidden"
@@ -283,13 +286,14 @@ const HomePage = () => {
                 <span className="text-sm font-medium text-blue-800">Tin tức & Blog</span>
               </div>
             </motion.div>
-            <motion.h2 
+            <motion.h2
               variants={itemVariants}
-              className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-3"
+              id="recent-blogs"
+              className="text-3xl font-bold text-gray-900 mb-3"
             >
               Khám Phá Thế Giới Nước Hoa
             </motion.h2>
-            <motion.p 
+            <motion.p
               variants={itemVariants}
               className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto"
             >
@@ -308,7 +312,7 @@ const HomePage = () => {
               variants={containerVariants}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {blogPosts.slice(0, 3).map((post, index) => (
+              {blogPosts.slice(0, 3).map((post) => (
                 <motion.div key={post.id} variants={itemVariants}>
                   <BlogCard post={post} />
                 </motion.div>
@@ -334,7 +338,7 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-amber-600 to-amber-800">
+      <section className="py-16 sm:py-20 bg-gradient-to-r from-amber-600 to-amber-800" aria-labelledby="cta-block">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -342,7 +346,7 @@ const HomePage = () => {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+            <h2 id="cta-block" className="text-3xl sm:text-4xl font-bold text-white mb-4">
               Sẵn Sàng Tìm Mùi Hương Đặc Trưng?
             </h2>
             <p className="text-lg text-amber-100 mb-6 max-w-2xl mx-auto">
@@ -351,13 +355,13 @@ const HomePage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/products"
-                className="bg-white text-amber-600 hover:bg-gray-100 font-semibold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                className="btn-primary"
               >
                 Mua sắm ngay
               </Link>
               <Link
                 to="/contact"
-                className="border-2 border-white text-white hover:bg-white hover:text-amber-600 font-semibold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105"
+                className="btn-secondary bg-transparent border-white text-white hover:bg-white hover:text-amber-600"
               >
                 Liên hệ tư vấn
               </Link>

@@ -12,8 +12,12 @@ const AdminLoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isValid, touchedFields }, watch } = useForm({
-    mode: 'onChange'
+  const { register, handleSubmit, formState: { errors, isValid }, watch } = useForm({
+    mode: 'onChange',
+    defaultValues: {
+      email: '',
+      password: ''
+    }
   });
 
   const emailValue = watch('email');
@@ -22,17 +26,34 @@ const AdminLoginPage = () => {
   // Check if form is valid for real-time feedback
   const isFormValid = isValid && emailValue && passwordValue;
 
+  useEffect(() => {
+    if (localStorage.getItem('adminToken')) {
+      setRememberMe(true);
+    }
+  }, []);
+
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
-      const response = await adminLogin(data);
-      
-      // Store token
-      localStorage.setItem('adminToken', response.token);
-      
+      const payload = {
+        ...data,
+        email: data.email.trim()
+      };
+
+      const response = await adminLogin(payload);
+
+      // Store token securely based on remember me
+      if (rememberMe) {
+        localStorage.setItem('adminToken', response.token);
+        sessionStorage.removeItem('adminToken');
+      } else {
+        sessionStorage.setItem('adminToken', response.token);
+        localStorage.removeItem('adminToken');
+      }
+
       toast.success('Đăng nhập thành công!');
       navigate('/admin/dashboard');
-      
+
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Email hoặc mật khẩu không đúng');
@@ -68,13 +89,14 @@ const AdminLoginPage = () => {
           transition={{ delay: 0.2 }}
           className="bg-white rounded-2xl shadow-xl p-8"
         >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="on" noValidate>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="admin_email">
                 Email
               </label>
               <div className="relative">
                 <input
+                  id="admin_email"
                   type="email"
                   {...register('email', {
                     required: 'Vui lòng nhập email',
@@ -83,10 +105,10 @@ const AdminLoginPage = () => {
                       message: 'Email không hợp lệ'
                     }
                   })}
+                  autoComplete="username"
                   className={`input-field pr-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : emailValue && !errors.email ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : ''}`}
                   placeholder="admin@rareparfume.com"
-                  defaultValue="admin@rareparfume.com"
-                />
+                  />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   {emailValue && !errors.email && (
                     <CheckCircle className="w-5 h-5 text-green-500" />
@@ -105,11 +127,12 @@ const AdminLoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="admin_password">
                 Mật khẩu
               </label>
               <div className="relative">
                 <input
+                  id="admin_password"
                   type={showPassword ? 'text' : 'password'}
                   {...register('password', {
                     required: 'Vui lòng nhập mật khẩu',
@@ -118,14 +141,15 @@ const AdminLoginPage = () => {
                       message: 'Mật khẩu phải có ít nhất 6 ký tự'
                     }
                   })}
+                  autoComplete="current-password"
                   className={`input-field pr-12 ${errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : passwordValue && !errors.password ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : ''}`}
                   placeholder="Nhập mật khẩu"
-                  defaultValue="admin123"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
