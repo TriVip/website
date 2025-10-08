@@ -7,6 +7,14 @@ async function createAdminUser() {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@rareparfume.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
 
+    if (adminPassword === 'admin123') {
+      console.warn('⚠️  ADMIN_PASSWORD is using the default value. Please change it before deploying.');
+    }
+
+    if (adminPassword.length < 12) {
+      console.warn('⚠️  ADMIN_PASSWORD should be at least 12 characters for better security.');
+    }
+
     // Hash the password
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(adminPassword, saltRounds);
