@@ -22,6 +22,12 @@ const ProductCard = ({ product }) => {
     toast.success('Tính năng xem nhanh sẽ sớm có mặt!');
   };
 
+  const priceValue = Number(product.price ?? 0);
+  const formattedPrice = new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(Number.isFinite(priceValue) ? priceValue : 0);
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -29,15 +35,16 @@ const ProductCard = ({ product }) => {
       className="group"
     >
       <Link to={`/products/${product.id}`} className="block">
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden border border-gray-100 hover:border-amber-200">
           {/* Product Image */}
           <div className="relative aspect-square overflow-hidden bg-gray-100">
             <img
               src={product.image_urls?.[0] || '/images/placeholder.jpg'}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
             />
-            
+
             {/* Overlay Actions */}
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
               <div className="flex space-x-2">
@@ -45,6 +52,7 @@ const ProductCard = ({ product }) => {
                   onClick={handleAddToCart}
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
                   title="Thêm vào giỏ hàng"
+                  aria-label="Thêm vào giỏ hàng"
                 >
                   <ShoppingCart className="w-5 h-5 text-gray-700" />
                 </button>
@@ -52,12 +60,14 @@ const ProductCard = ({ product }) => {
                   onClick={handleQuickView}
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
                   title="Xem nhanh"
+                  aria-label="Xem nhanh"
                 >
                   <Eye className="w-5 h-5 text-gray-700" />
                 </button>
                 <button
                   className="p-2 bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors duration-300"
                   title="Yêu thích"
+                  aria-label="Thêm vào danh sách yêu thích"
                 >
                   <Heart className="w-5 h-5 text-gray-700 hover:text-red-500" />
                 </button>
@@ -84,17 +94,17 @@ const ProductCard = ({ product }) => {
           </div>
 
           {/* Product Info */}
-          <div className="p-3">
+          <div className="p-4 space-y-2">
             <div className="mb-1">
               <span className="text-xs text-amber-600 font-medium">{product.brand}</span>
             </div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors duration-300">
+            <h3 className="text-base font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors duration-300">
               {product.name}
             </h3>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-1">
-                <span className="text-base font-bold text-gray-900">
-                  ${product.price}
+                <span className="text-lg font-bold text-gray-900">
+                  {formattedPrice}
                 </span>
                 <span className="text-xs text-gray-500">
                   {product.volume_ml}ml

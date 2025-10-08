@@ -5,13 +5,26 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
 const ContactPage = () => {
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+    mode: 'onTouched'
+  });
 
   const onSubmit = async (data) => {
     try {
+      const sanitizedData = Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [
+          key,
+          typeof value === 'string'
+            ? value.replace(/[<>]/g, '').trim()
+            : value
+        ])
+      );
+
       // Simulate form submission
       await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Tin nhắn đã được gửi thành công! Chúng tôi sẽ phản hồi sớm nhất có thể.');
+
+      const customerName = sanitizedData.name ? sanitizedData.name.split(' ')[0] : 'bạn';
+      toast.success(`Tin nhắn đã được gửi thành công, ${customerName}! Chúng tôi sẽ phản hồi sớm nhất có thể.`);
       reset();
     } catch (error) {
       toast.error('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại.');
@@ -63,68 +76,94 @@ const ContactPage = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl shadow-lg p-8"
+            className="bg-white rounded-2xl shadow-xl p-6 sm:p-10 space-y-6"
           >
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Gửi tin nhắn</h2>
-            
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-gray-900">Gửi tin nhắn</h2>
+              <p className="text-sm text-gray-600">Các thông tin sẽ được mã hóa khi gửi đến đội ngũ Rare Parfume.</p>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" autoComplete="off" noValidate>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Họ và tên *
+                  <label className="input-label" htmlFor="contact_name">
+                    Họ và tên
                   </label>
                   <input
+                    id="contact_name"
                     type="text"
+                    autoComplete="name"
+                    maxLength={80}
                     {...register('name', { required: 'Vui lòng nhập họ và tên' })}
-                    className="input-field"
+                    className={`input-field ${errors.name ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                     placeholder="Nhập họ và tên"
+                    aria-invalid={errors.name ? 'true' : 'false'}
                   />
                   {errors.name && (
-                    <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+                    <p className="text-red-500 text-sm mt-1" role="alert">{errors.name.message}</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email *
+                  <label className="input-label" htmlFor="contact_email">
+                    Email
                   </label>
                   <input
+                    id="contact_email"
                     type="email"
-                    {...register('email', { 
+                    autoComplete="email"
+                    maxLength={120}
+                    {...register('email', {
                       required: 'Vui lòng nhập email',
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                         message: 'Email không hợp lệ'
                       }
                     })}
-                    className="input-field"
+                    className={`input-field ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                     placeholder="Nhập email"
+                    aria-invalid={errors.email ? 'true' : 'false'}
                   />
                   {errors.email && (
-                    <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                    <p className="text-red-500 text-sm mt-1" role="alert">{errors.email.message}</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Số điện thoại
+                <label className="input-label" htmlFor="contact_phone">
+                  Số điện thoại <span className="text-gray-400 font-normal">(tùy chọn)</span>
                 </label>
                 <input
+                  id="contact_phone"
                   type="tel"
-                  {...register('phone')}
-                  className="input-field"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  maxLength={11}
+                  {...register('phone', {
+                    pattern: {
+                      value: /^[0-9]{10,11}$/,
+                      message: 'Số điện thoại không hợp lệ'
+                    }
+                  })}
+                  className={`input-field ${errors.phone ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                   placeholder="Nhập số điện thoại"
+                  aria-invalid={errors.phone ? 'true' : 'false'}
                 />
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1" role="alert">{errors.phone.message}</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chủ đề *
+                <label className="input-label" htmlFor="contact_subject">
+                  Chủ đề
                 </label>
                 <select
+                  id="contact_subject"
                   {...register('subject', { required: 'Vui lòng chọn chủ đề' })}
-                  className="input-field"
+                  className={`input-field ${errors.subject ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  aria-invalid={errors.subject ? 'true' : 'false'}
                 >
                   <option value="">Chọn chủ đề</option>
                   <option value="general">Câu hỏi chung</option>
@@ -135,28 +174,30 @@ const ContactPage = () => {
                   <option value="other">Khác</option>
                 </select>
                 {errors.subject && (
-                  <p className="text-red-500 text-sm mt-1">{errors.subject.message}</p>
+                  <p className="text-red-500 text-sm mt-1" role="alert">{errors.subject.message}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tin nhắn *
+                <label className="input-label" htmlFor="contact_message">
+                  Tin nhắn
                 </label>
                 <textarea
-                  {...register('message', { required: 'Vui lòng nhập tin nhắn' })}
-                  className="input-field"
+                  id="contact_message"
+                  {...register('message', { required: 'Vui lòng nhập tin nhắn', minLength: { value: 10, message: 'Tin nhắn quá ngắn' } })}
+                  className={`input-field min-h-[160px] ${errors.message ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                   rows={5}
                   placeholder="Nhập tin nhắn của bạn..."
+                  aria-invalid={errors.message ? 'true' : 'false'}
                 />
                 {errors.message && (
-                  <p className="text-red-500 text-sm mt-1">{errors.message.message}</p>
+                  <p className="text-red-500 text-sm mt-1" role="alert">{errors.message.message}</p>
                 )}
               </div>
 
               <button
                 type="submit"
-                className="w-full btn-primary flex items-center justify-center space-x-2"
+                className="w-full btn-primary"
               >
                 <Send className="w-5 h-5" />
                 <span>Gửi tin nhắn</span>
