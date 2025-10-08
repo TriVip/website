@@ -59,4 +59,4 @@ The modern perfume industry began in France in the 19th century, with the rise o
 
 -- Insert admin user (password: admin123)
 INSERT INTO admin_users (email, password_hash, name, role) VALUES
-('admin@rareparfume.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin User', 'admin');
+('admin@rareparfume.com', '$2a$10$wrjfTeeUM7CRcG4VgHepSer2mxJB4InGzlCxBu633zpSd/SGmQCOu', 'Admin User', 'admin');

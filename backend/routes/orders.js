@@ -1,13 +1,41 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const pool = require('../config/database');
+const { dbAll, dbGet, runInTransaction } = require('../config/database');
+
 const router = express.Router();
 
-// Helper function to generate order number
 const generateOrderNumber = () => {
   const timestamp = Date.now().toString();
   const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   return `RP${timestamp.slice(-6)}${random}`;
+};
+
+const parseFirstImage = (imageJson) => {
+  try {
+    const images = JSON.parse(imageJson || '[]');
+    return images.length > 0 ? images[0] : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const getOrderItems = async (orderId) => {
+  const rows = await dbAll(
+    `SELECT oi.*, p.name AS product_name, p.image_urls
+     FROM order_items oi
+     LEFT JOIN products p ON oi.product_id = p.id
+     WHERE oi.order_id = ?`,
+    [orderId]
+  );
+
+  return rows.map((item) => ({
+    id: item.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    price_at_purchase: item.price_at_purchase,
+    product_name: item.product_name,
+    product_image: parseFirstImage(item.image_urls)
+  }));
 };
 
 // POST /api/orders - Create new order
@@ -38,112 +66,89 @@ router.post('/', [
       notes
     } = req.body;
 
-    // Start transaction
-    const client = await pool.connect();
-    
-    try {
-      await client.query('BEGIN');
-
-      // Validate products and calculate total
+    const order = await runInTransaction(async (tx) => {
       let totalAmount = 0;
       const validatedItems = [];
 
       for (const item of items) {
-        const productResult = await client.query(
-          'SELECT id, name, price, stock_quantity FROM products WHERE id = $1 AND is_active = true',
+        const product = await tx.get(
+          'SELECT id, name, price, stock_quantity FROM products WHERE id = ? AND is_active = 1',
           [item.product_id]
         );
 
-        if (productResult.rows.length === 0) {
-          throw new Error(`Product with ID ${item.product_id} not found`);
+        if (!product) {
+          const error = new Error(`Product with ID ${item.product_id} not found`);
+          error.statusCode = 400;
+          throw error;
         }
 
-        const product = productResult.rows[0];
-        
         if (product.stock_quantity < item.quantity) {
-          throw new Error(`Insufficient stock for product: ${product.name}`);
+          const error = new Error(`Insufficient stock for product: ${product.name}`);
+          error.statusCode = 400;
+          throw error;
         }
 
-        const itemTotal = product.price * item.quantity;
+        const itemTotal = Number(product.price) * item.quantity;
         totalAmount += itemTotal;
 
         validatedItems.push({
           product_id: item.product_id,
           quantity: item.quantity,
-          price_at_purchase: product.price,
-          product_name: product.name
+          price_at_purchase: product.price
         });
       }
 
-      // Generate order number
       const orderNumber = generateOrderNumber();
 
-      // Create order
-      const orderResult = await client.query(
-        `INSERT INTO orders (order_number, customer_name, customer_email, customer_phone, 
+      const createOrderResult = await tx.run(
+        `INSERT INTO orders (order_number, customer_name, customer_email, customer_phone,
          shipping_address, total_amount, payment_method, notes, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
-         RETURNING *`,
-        [orderNumber, customer_name, customer_email, customer_phone, 
-         shipping_address, totalAmount, payment_method, notes]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [
+          orderNumber,
+          customer_name,
+          customer_email,
+          customer_phone,
+          shipping_address,
+          totalAmount,
+          payment_method,
+          notes || null
+        ]
       );
 
-      const order = orderResult.rows[0];
+      const orderId = createOrderResult.lastID;
 
-      // Create order items and update stock
       for (const item of validatedItems) {
-        await client.query(
-          'INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES ($1, $2, $3, $4)',
-          [order.id, item.product_id, item.quantity, item.price_at_purchase]
+        await tx.run(
+          'INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES (?, ?, ?, ?)',
+          [orderId, item.product_id, item.quantity, item.price_at_purchase]
         );
 
-        // Update stock quantity
-        await client.query(
-          'UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2',
+        await tx.run(
+          'UPDATE products SET stock_quantity = stock_quantity - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
           [item.quantity, item.product_id]
         );
       }
 
-      await client.query('COMMIT');
+      return tx.get('SELECT * FROM orders WHERE id = ?', [orderId]);
+    });
 
-      // Get order with items for response
-      const orderWithItems = await pool.query(
-        `SELECT o.*, 
-         json_agg(
-           json_build_object(
-             'id', oi.id,
-             'product_id', oi.product_id,
-             'quantity', oi.quantity,
-             'price_at_purchase', oi.price_at_purchase,
-             'product_name', p.name,
-             'product_image', p.image_urls[1]
-           )
-         ) as items
-         FROM orders o
-         LEFT JOIN order_items oi ON o.id = oi.order_id
-         LEFT JOIN products p ON oi.product_id = p.id
-         WHERE o.id = $1
-         GROUP BY o.id`,
-        [order.id]
-      );
+    const orderItems = await getOrderItems(order.id);
 
-      res.status(201).json({
-        message: 'Order created successfully',
-        order: orderWithItems.rows[0]
-      });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    res.status(201).json({
+      message: 'Order created successfully',
+      order: {
+        ...order,
+        items: orderItems
+      }
+    });
 
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ 
-      error: 'Failed to create order',
-      message: error.message 
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      error: statusCode === 500 ? 'Failed to create order' : error.message,
+      message: statusCode === 500 ? error.message : undefined
     });
   }
 });
@@ -153,31 +158,18 @@ router.get('/:orderNumber', async (req, res) => {
   try {
     const { orderNumber } = req.params;
 
-    const result = await pool.query(
-      `SELECT o.*, 
-       json_agg(
-         json_build_object(
-           'id', oi.id,
-           'product_id', oi.product_id,
-           'quantity', oi.quantity,
-           'price_at_purchase', oi.price_at_purchase,
-           'product_name', p.name,
-           'product_image', p.image_urls[1]
-         )
-       ) as items
-       FROM orders o
-       LEFT JOIN order_items oi ON o.id = oi.order_id
-       LEFT JOIN products p ON oi.product_id = p.id
-       WHERE o.order_number = $1
-       GROUP BY o.id`,
-      [orderNumber]
-    );
+    const order = await dbGet('SELECT * FROM orders WHERE order_number = ?', [orderNumber]);
 
-    if (result.rows.length === 0) {
+    if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    res.json(result.rows[0]);
+    const items = await getOrderItems(order.id);
+
+    res.json({
+      ...order,
+      items
+    });
 
   } catch (error) {
     console.error('Error fetching order:', error);
@@ -194,28 +186,19 @@ router.get('/', async (req, res) => {
       return res.status(400).json({ error: 'Email parameter is required' });
     }
 
-    const result = await pool.query(
-      `SELECT o.*, 
-       json_agg(
-         json_build_object(
-           'id', oi.id,
-           'product_id', oi.product_id,
-           'quantity', oi.quantity,
-           'price_at_purchase', oi.price_at_purchase,
-           'product_name', p.name,
-           'product_image', p.image_urls[1]
-         )
-       ) as items
-       FROM orders o
-       LEFT JOIN order_items oi ON o.id = oi.order_id
-       LEFT JOIN products p ON oi.product_id = p.id
-       WHERE o.customer_email = $1
-       GROUP BY o.id
-       ORDER BY o.created_at DESC`,
+    const orders = await dbAll(
+      'SELECT * FROM orders WHERE customer_email = ? ORDER BY created_at DESC',
       [email]
     );
 
-    res.json(result.rows);
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => ({
+        ...order,
+        items: await getOrderItems(order.id)
+      }))
+    );
+
+    res.json(ordersWithItems);
 
   } catch (error) {
     console.error('Error fetching orders:', error);

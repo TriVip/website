@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { adminLogin } from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -12,27 +12,43 @@ const AdminLoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isValid, touchedFields }, watch } = useForm({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isValid },
+    watch
+  } = useForm({
     mode: 'onChange'
   });
 
   const emailValue = watch('email');
   const passwordValue = watch('password');
 
-  // Check if form is valid for real-time feedback
   const isFormValid = isValid && emailValue && passwordValue;
+
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('adminRememberedEmail');
+    if (rememberedEmail) {
+      setValue('email', rememberedEmail);
+      setRememberMe(true);
+    }
+  }, [setValue]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
     try {
       const response = await adminLogin(data);
-
-      // Store token
       localStorage.setItem('adminToken', response.token);
+
+      if (rememberMe) {
+        localStorage.setItem('adminRememberedEmail', data.email);
+      } else {
+        localStorage.removeItem('adminRememberedEmail');
+      }
 
       toast.success('Đăng nhập thành công!');
       navigate('/dashboard');
-
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Email hoặc mật khẩu không đúng');
@@ -48,20 +64,14 @@ const AdminLoginPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full space-y-8"
       >
-        {/* Header */}
         <div className="text-center">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-amber-600 to-amber-800 rounded-xl flex items-center justify-center mb-6">
             <span className="text-white font-bold text-2xl">R</span>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Hệ thống Quản lý Bán hàng
-          </h2>
-          <p className="text-gray-600">
-            Đăng nhập để truy cập hệ thống OMS
-          </p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Hệ thống Quản lý Bán hàng</h2>
+          <p className="text-gray-600">Đăng nhập để truy cập hệ thống OMS</p>
         </div>
 
-        {/* Login Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -70,12 +80,11 @@ const AdminLoginPage = () => {
         >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <div className="relative">
                 <input
                   type="email"
+                  autoComplete="email"
                   {...register('email', {
                     required: 'Vui lòng nhập email',
                     pattern: {
@@ -85,15 +94,10 @@ const AdminLoginPage = () => {
                   })}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors pr-12 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : emailValue && !errors.email ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : 'border-gray-300'}`}
                   placeholder="admin@rareparfume.com"
-                  defaultValue="admin@rareparfume.com"
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  {emailValue && !errors.email && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  )}
-                  {errors.email && (
-                    <AlertCircle className="w-5 h-5 text-red-500" />
-                  )}
+                  {emailValue && !errors.email && <CheckCircle className="w-5 h-5 text-green-500" />}
+                  {errors.email && <AlertCircle className="w-5 h-5 text-red-500" />}
                 </div>
               </div>
               {errors.email && (
@@ -105,12 +109,11 @@ const AdminLoginPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mật khẩu
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   {...register('password', {
                     required: 'Vui lòng nhập mật khẩu',
                     minLength: {
@@ -120,22 +123,18 @@ const AdminLoginPage = () => {
                   })}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-colors pr-12 ${errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : passwordValue && !errors.password ? 'border-green-300 focus:border-green-500 focus:ring-green-500' : 'border-gray-300'}`}
                   placeholder="Nhập mật khẩu"
-                  defaultValue="admin123"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
                 <div className="absolute right-16 top-1/2 transform -translate-y-1/2">
-                  {passwordValue && !errors.password && (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                  )}
-                  {errors.password && (
-                    <AlertCircle className="w-5 h-5 text-red-500" />
-                  )}
+                  {passwordValue && !errors.password && <CheckCircle className="w-5 h-5 text-green-500" />}
+                  {errors.password && <AlertCircle className="w-5 h-5 text-red-500" />}
                 </div>
               </div>
               {errors.password && (
@@ -146,13 +145,17 @@ const AdminLoginPage = () => {
               )}
             </div>
 
-            {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
               <label className="flex items-center">
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(e) => {
+                    setRememberMe(e.target.checked);
+                    if (!e.target.checked) {
+                      localStorage.removeItem('adminRememberedEmail');
+                    }
+                  }}
                   className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                 />
                 <span className="ml-2 text-sm text-gray-700">Ghi nhớ đăng nhập</span>
@@ -176,12 +179,11 @@ const AdminLoginPage = () => {
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              <LogIn className={`w-5 h-5 ${isLoading ? 'animate-pulse' : ''}`} />
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogIn className="w-5 h-5" />}
               <span>{isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}</span>
             </button>
           </form>
 
-          {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h3 className="text-sm font-medium text-blue-800 mb-2">Thông tin demo:</h3>
             <div className="text-xs text-blue-700 space-y-1">
@@ -192,16 +194,13 @@ const AdminLoginPage = () => {
           </div>
         </motion.div>
 
-        {/* Footer */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
           className="text-center"
         >
-          <p className="text-sm text-gray-600">
-            © 2024 Rare Parfume OMS. Tất cả quyền được bảo lưu.
-          </p>
+          <p className="text-sm text-gray-600">© 2024 Rare Parfume OMS. Tất cả quyền được bảo lưu.</p>
         </motion.div>
       </motion.div>
     </div>
