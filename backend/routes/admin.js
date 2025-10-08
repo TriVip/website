@@ -3,6 +3,7 @@ const { body, validationResult, query } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { dbGet, dbAll, dbRun } = require('../config/database');
+const { jwtSecret } = require('../config/security');
 const router = express.Router();
 
 const parseProduct = (product) => {
@@ -72,7 +73,6 @@ const verifyAdminToken = async (req, res, next) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const jwtSecret = process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024';
     const decoded = jwt.verify(token, jwtSecret);
     
     // Verify admin user exists and is active
@@ -121,7 +121,7 @@ router.post('/login', [
 
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
-      process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024',
+      jwtSecret,
       { expiresIn: '24h' }
     );
     res.json({

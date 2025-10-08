@@ -121,6 +121,8 @@ cp env.example .env
 # DB_NAME=rare_parfume
 # DB_USER=postgres
 # DB_PASSWORD=your_password
+# ALLOWED_ORIGINS=https://rareparfume.com,https://admin.rareparfume.com
+# JWT_SECRET=chuoi_bao_mat_it_nhat_32_ky_tu
 
 # Khởi động server
 npm run dev
@@ -255,6 +257,12 @@ Website được thiết kế responsive hoàn toàn, hỗ trợ tất cả các
 - `DELETE /api/admin/products/:id` - Xóa sản phẩm
 
 ## 🚀 Deployment
+
+### 🔐 Lưu ý bảo mật trước khi deploy
+- Thiết lập biến môi trường `NODE_ENV=production` và cung cấp `JWT_SECRET` tối thiểu 32 ký tự.
+- Cập nhật `ALLOWED_ORIGINS` với danh sách domain thật (ví dụ: `https://rareparfume.com,https://admin.rareparfume.com`).
+- Đặt lại `ADMIN_EMAIL` và `ADMIN_PASSWORD` bằng thông tin riêng, tránh giữ giá trị mặc định.
+- Bật HTTPS (ví dụ thông qua reverse proxy/Heroku SSL) để bảo vệ dữ liệu đăng nhập và thanh toán.
 
 ### Backend (Heroku)
 ```bash
