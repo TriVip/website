@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
+import LayoutContainer from '../components/LayoutContainer';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
@@ -43,7 +44,7 @@ const ContactPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <LayoutContainer className="py-12">
         {/* Header */}
         <div className="text-center mb-16">
           <motion.div
@@ -66,7 +67,7 @@ const ContactPage = () => {
             className="bg-white rounded-xl shadow-lg p-8"
           >
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Gửi tin nhắn</h2>
-            
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -78,6 +79,8 @@ const ContactPage = () => {
                     {...register('name', { required: 'Vui lòng nhập họ và tên' })}
                     className="input-field"
                     placeholder="Nhập họ và tên"
+                    autoComplete="name"
+                    aria-label="Họ và tên"
                   />
                   {errors.name && (
                     <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
@@ -90,7 +93,7 @@ const ContactPage = () => {
                   </label>
                   <input
                     type="email"
-                    {...register('email', { 
+                    {...register('email', {
                       required: 'Vui lòng nhập email',
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -99,6 +102,8 @@ const ContactPage = () => {
                     })}
                     className="input-field"
                     placeholder="Nhập email"
+                    autoComplete="email"
+                    aria-label="Email"
                   />
                   {errors.email && (
                     <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
@@ -112,10 +117,22 @@ const ContactPage = () => {
                 </label>
                 <input
                   type="tel"
-                  {...register('phone')}
+                  {...register('phone', {
+                    pattern: {
+                      value: /^[0-9]{9,15}$/,
+                      message: 'Số điện thoại không hợp lệ'
+                    }
+                  })}
                   className="input-field"
                   placeholder="Nhập số điện thoại"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  maxLength={15}
+                  aria-label="Số điện thoại"
                 />
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
+                )}
               </div>
 
               <div>
@@ -125,6 +142,8 @@ const ContactPage = () => {
                 <select
                   {...register('subject', { required: 'Vui lòng chọn chủ đề' })}
                   className="input-field"
+                  defaultValue=""
+                  aria-label="Chủ đề liên hệ"
                 >
                   <option value="">Chọn chủ đề</option>
                   <option value="general">Câu hỏi chung</option>
@@ -148,6 +167,7 @@ const ContactPage = () => {
                   className="input-field"
                   rows={5}
                   placeholder="Nhập tin nhắn của bạn..."
+                  aria-label="Nội dung tin nhắn"
                 />
                 {errors.message && (
                   <p className="text-red-500 text-sm mt-1">{errors.message.message}</p>
@@ -249,7 +269,7 @@ const ContactPage = () => {
             </motion.div>
           </motion.div>
         </div>
-      </div>
+      </LayoutContainer>
     </div>
   );
 };

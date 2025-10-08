@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { ArrowLeft, Check, CreditCard, Truck, Shield } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { createOrder } from '../services/api';
+import LayoutContainer from '../components/LayoutContainer';
 import toast from 'react-hot-toast';
 
 const CheckoutPage = () => {
@@ -78,7 +79,8 @@ const CheckoutPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <LayoutContainer className="py-6">
+        <div className="mx-auto w-full max-w-4xl">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <button
@@ -135,7 +137,7 @@ const CheckoutPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
           {/* Checkout Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="on">
               {/* Step 1: Shipping Information */}
               {currentStep === 1 && (
                 <motion.div
@@ -144,7 +146,7 @@ const CheckoutPage = () => {
                   className="bg-white rounded-xl shadow-lg p-6"
                 >
                   <h2 className="text-lg font-bold text-gray-900 mb-4">Thông tin giao hàng</h2>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -155,6 +157,8 @@ const CheckoutPage = () => {
                         {...register('customer_name', { required: 'Vui lòng nhập họ và tên' })}
                         className="input-field"
                         placeholder="Nhập họ và tên"
+                        autoComplete="name"
+                        aria-label="Họ và tên"
                       />
                       {errors.customer_name && (
                         <p className="text-red-500 text-sm mt-1">{errors.customer_name.message}</p>
@@ -167,7 +171,7 @@ const CheckoutPage = () => {
                       </label>
                       <input
                         type="tel"
-                        {...register('customer_phone', { 
+                        {...register('customer_phone', {
                           required: 'Vui lòng nhập số điện thoại',
                           pattern: {
                             value: /^[0-9]{10,11}$/,
@@ -176,6 +180,10 @@ const CheckoutPage = () => {
                         })}
                         className="input-field"
                         placeholder="Nhập số điện thoại"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        maxLength={11}
+                        aria-label="Số điện thoại"
                       />
                       {errors.customer_phone && (
                         <p className="text-red-500 text-sm mt-1">{errors.customer_phone.message}</p>
@@ -189,7 +197,7 @@ const CheckoutPage = () => {
                     </label>
                     <input
                       type="email"
-                      {...register('customer_email', { 
+                      {...register('customer_email', {
                         required: 'Vui lòng nhập email',
                         pattern: {
                           value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -198,6 +206,8 @@ const CheckoutPage = () => {
                       })}
                       className="input-field"
                       placeholder="Nhập email"
+                      autoComplete="email"
+                      aria-label="Email"
                     />
                     {errors.customer_email && (
                       <p className="text-red-500 text-sm mt-1">{errors.customer_email.message}</p>
@@ -213,6 +223,8 @@ const CheckoutPage = () => {
                       className="input-field"
                       rows={3}
                       placeholder="Nhập địa chỉ giao hàng chi tiết"
+                      autoComplete="street-address"
+                      aria-label="Địa chỉ giao hàng"
                     />
                     {errors.shipping_address && (
                       <p className="text-red-500 text-sm mt-1">{errors.shipping_address.message}</p>
@@ -228,6 +240,8 @@ const CheckoutPage = () => {
                       className="input-field"
                       rows={2}
                       placeholder="Ghi chú thêm cho đơn hàng"
+                      autoComplete="off"
+                      aria-label="Ghi chú đơn hàng"
                     />
                   </div>
                 </motion.div>
@@ -252,12 +266,13 @@ const CheckoutPage = () => {
                           {...register('payment_method')}
                           defaultChecked
                           className="text-amber-600 focus:ring-amber-500"
+                          aria-describedby="qr_code_description"
                         />
                         <label htmlFor="qr_code" className="flex items-center space-x-3 cursor-pointer">
                           <CreditCard className="w-6 h-6 text-gray-600" />
                           <div>
                             <p className="font-medium text-gray-900">Thanh toán bằng mã QR</p>
-                            <p className="text-sm text-gray-600">Quét mã QR để thanh toán nhanh chóng</p>
+                            <p id="qr_code_description" className="text-sm text-gray-600">Quét mã QR để thanh toán nhanh chóng</p>
                           </div>
                         </label>
                       </div>
@@ -403,7 +418,8 @@ const CheckoutPage = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </LayoutContainer>
     </div>
   );
 };
