@@ -67,12 +67,13 @@ const requireRole = (...roles) => (req, res, next) => {
 const verifyAdminToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024';
+    const decoded = jwt.verify(token, jwtSecret);
     
     // Verify admin user exists and is active
     const admin = await dbGet(
@@ -97,48 +98,32 @@ router.post('/login', [
   body('password').isLength({ min: 6 })
 ], async (req, res) => {
   try {
-    console.log('🔐 Login attempt for:', req.body.email);
-
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
-    console.log('✅ Request body parsed successfully');
-
-    // Use SQLite database functions instead of pool.query
-    console.log('🔍 Searching for admin user:', email);
     const admin = await dbGet(
       'SELECT id, email, password_hash, name, role FROM admin_users WHERE email = ? AND is_active = 1',
       [email]
     );
-    console.log('📊 Admin found:', admin ? 'Yes' : 'No');
 
     if (!admin) {
-      console.log('❌ Admin not found');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('🔑 Verifying password...');
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
-    console.log('✅ Password valid:', isValidPassword);
 
     if (!isValidPassword) {
-      console.log('❌ Invalid password');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    console.log('🎫 Creating JWT token...');
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
       process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024',
       { expiresIn: '24h' }
     );
-    console.log('✅ Token created, length:', token.length);
-
-    console.log('📤 Sending response...');
     res.json({
       message: 'Login successful',
       token,
@@ -152,7 +137,6 @@ router.post('/login', [
 
   } catch (error) {
     console.error('❌ Error during admin login:', error.message);
-    console.error('❌ Stack trace:', error.stack);
     res.status(500).json({ error: 'Login failed' });
   }
 });

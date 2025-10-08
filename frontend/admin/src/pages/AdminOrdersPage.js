@@ -1,49 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import {
   Search,
-  Filter,
   Eye,
-  CheckCircle,
-  Clock,
-  Truck,
-  XCircle,
   Package,
   X,
-  Plus
+  Plus,
+  Loader2,
+  AlertCircle,
+  Inbox,
+  RotateCcw
 } from 'lucide-react';
-import {
-  fetchAdminOrders,
-  updateOrderStatus
-} from '../services/api';
+import { fetchAdminOrders, updateOrderStatus } from '../services/api';
 import toast from 'react-hot-toast';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'pending', label: 'Chờ xử lý' },
+  { value: 'paid', label: 'Đã thanh toán' },
+  { value: 'shipped', label: 'Đang giao hàng' },
+  { value: 'delivered', label: 'Đã giao hàng' },
+  { value: 'cancelled', label: 'Đã hủy', adminOnly: true }
+];
+
+const STATUS_BADGES = {
+  pending: 'bg-amber-100 text-amber-700',
+  paid: 'bg-blue-100 text-blue-700',
+  shipped: 'bg-purple-100 text-purple-700',
+  delivered: 'bg-emerald-100 text-emerald-700',
+  cancelled: 'bg-rose-100 text-rose-700'
+};
+
+const STATUS_LABELS = {
+  pending: 'Chờ xử lý',
+  paid: 'Đã thanh toán',
+  shipped: 'Đang giao hàng',
+  delivered: 'Đã giao hàng',
+  cancelled: 'Đã hủy'
+};
+
+const ROLE_LABELS = {
+  admin: 'Quản trị viên',
+  sale: 'Nhân viên bán hàng'
+};
 
 const AdminOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const queryClient = useQueryClient();
 
-  const { data: ordersData, isLoading } = useQuery(
-    ['admin-orders', currentPage, searchTerm, statusFilter],
-    () => fetchAdminOrders({
-      page: currentPage,
-      limit: 10,
-      search: searchTerm,
-      status: statusFilter
-    }),
-    {
-      keepPreviousData: true,
-    }
-  );
+  const {
+    data: ordersData,
+    isLoading,
+    isError,
+    refetch
+  } = useQuery(['admin-orders', currentPage, searchTerm, statusFilter], () => fetchAdminOrders({
+    page: currentPage,
+    limit: 10,
+    search: searchTerm,
+    status: statusFilter === 'all' ? '' : statusFilter
+  }), {
+    keepPreviousData: true
+  });
 
-  // Check if user is admin (can delete orders)
   const isAdmin = ordersData?.user?.role === 'admin';
-
+  const userRoleLabel = ROLE_LABELS[ordersData?.user?.role] || 'Người dùng';
   const orders = ordersData?.orders || [];
   const pagination = ordersData?.pagination || {};
+  const pageSize = pagination.limit || 10;
+  const totalCount = pagination.total_count || 0;
+  const fromItem = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const toItem = Math.min(currentPage * pageSize, totalCount);
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }),
+    []
+  );
+
+  const dateTimeFormatter = useMemo(
+    () => new Intl.DateTimeFormat('vi-VN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    []
+  );
 
   const updateStatusMutation = useMutation(
     ({ id, status }) => updateOrderStatus(id, status),
@@ -63,115 +109,60 @@ const AdminOrdersPage = () => {
     updateStatusMutation.mutate({ id: orderId, status: newStatus });
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      case 'paid':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'shipped':
-        return <Truck className="w-4 h-4" />;
-      case 'delivered':
-        return <Package className="w-4 h-4" />;
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'paid':
-        return 'text-blue-600 bg-blue-100';
-      case 'shipped':
-        return 'text-purple-600 bg-purple-100';
-      case 'delivered':
-        return 'text-green-600 bg-green-100';
-      case 'cancelled':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
   };
 
-  const getStatusText = (status) => {
-    const statusMap = {
-      pending: 'Chờ xử lý',
-      paid: 'Đã thanh toán',
-      shipped: 'Đang giao hàng',
-      delivered: 'Đã giao hàng',
-      cancelled: 'Đã hủy'
-    };
-    return statusMap[status] || status;
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setCurrentPage(1);
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+  const emptyStateTitle = searchTerm || statusFilter !== 'all'
+    ? 'Không tìm thấy đơn hàng phù hợp'
+    : 'Chưa có đơn hàng';
+  const emptyStateDescription = searchTerm || statusFilter !== 'all'
+    ? 'Hãy thử điều chỉnh từ khóa tìm kiếm hoặc bộ lọc trạng thái.'
+    : 'Đơn hàng mới sẽ xuất hiện tại đây ngay khi được tạo.';
+
+  if (isError) {
+    return (
+      <div className="bg-white rounded-2xl border border-red-100 shadow-sm p-8 text-center text-red-600">
+        <div className="flex flex-col items-center space-y-3">
+          <AlertCircle className="w-10 h-10" />
+          <p className="text-lg font-semibold">Không thể tải danh sách đơn hàng</p>
+          <p className="text-sm text-red-500">Vui lòng kiểm tra kết nối và thử lại.</p>
+          <button onClick={() => refetch()} className="btn-primary px-5">Thử lại</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Quản lý đơn hàng
-          {ordersData?.user?.role === 'admin' && (
-            <span className="ml-2 text-lg font-normal text-gray-600">- Quản trị viên</span>
-          )}
-          {ordersData?.user?.role === 'sales' && (
-            <span className="ml-2 text-lg font-normal text-blue-600">- Nhân viên bán hàng</span>
-          )}
-        </h1>
-        <p className="text-gray-600">
-          {ordersData?.user?.role === 'admin'
-            ? 'Xem và cập nhật trạng thái đơn hàng - Toàn quyền quản lý'
-            : 'Xem và cập nhật trạng thái đơn hàng do bạn tạo'
-          }
-        </p>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-        <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-          <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 flex-1">
-            <div className="flex-1 relative w-full md:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo mã đơn hàng hoặc tên khách hàng..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              />
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="pending">Chờ xử lý</option>
-                <option value="paid">Đã thanh toán</option>
-                <option value="shipped">Đang giao hàng</option>
-                <option value="delivered">Đã giao hàng</option>
-                {isAdmin && <option value="cancelled">Đã hủy</option>}
-              </select>
-            </div>
-          </div>
-
-          {/* Create Order Button - Only for Sales */}
-          {ordersData?.user?.role === 'sales' && (
+    <div className="space-y-8">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Quản lý đơn hàng</h1>
+          <p className="text-slate-500">
+            Vai trò: <span className="font-semibold text-slate-700">{userRoleLabel}</span>. Xem và cập nhật trạng thái đơn hàng.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => refetch()}
+            className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Làm mới</span>
+          </button>
+          {ordersData?.user?.role === 'sale' && (
             <button className="btn-primary flex items-center space-x-2">
               <Plus className="w-5 h-5" />
               <span>Tạo đơn hàng</span>
@@ -180,54 +171,98 @@ const AdminOrdersPage = () => {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Tìm kiếm theo mã đơn hàng, khách hàng hoặc email..."
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
           </div>
-        ) : (
+          <div className="flex items-center gap-2">
+            {STATUS_OPTIONS.filter((option) => isAdmin || !option.adminOnly).map((option) => (
+              <button
+                key={option.value || 'all'}
+                onClick={() => handleStatusFilterChange(option.value)}
+                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                  statusFilter === option.value
+                    ? 'border-amber-500 bg-amber-50 text-amber-700'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {(searchTerm || statusFilter) && (
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <span>
+              Đang lọc theo:
+              {searchTerm && (
+                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                  Từ khóa: {searchTerm}
+                </span>
+              )}
+              {statusFilter !== 'all' && (
+                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                  Trạng thái: {STATUS_LABELS[statusFilter]}
+                </span>
+              )}
+            </span>
+            <button onClick={resetFilters} className="text-amber-600 hover:text-amber-700">
+              Xóa bộ lọc
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+        {isLoading ? (
+          <OrdersTableSkeleton />
+        ) : orders.length ? (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Mã đơn hàng</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Khách hàng</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Tổng tiền</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Trạng thái</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Ngày tạo</th>
-                  <th className="text-left py-4 px-6 font-medium text-gray-700">Hành động</th>
+              <thead className="bg-slate-50">
+                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="py-4 px-6">Mã đơn hàng</th>
+                  <th className="py-4 px-6">Khách hàng</th>
+                  <th className="py-4 px-6">Tổng tiền</th>
+                  <th className="py-4 px-6">Trạng thái</th>
+                  <th className="py-4 px-6">Ngày tạo</th>
+                  <th className="py-4 px-6">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-slate-100">
                 {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
+                  <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                     <td className="py-4 px-6">
-                      <div className="font-medium text-gray-900">{order.order_number}</div>
-                      <div className="text-sm text-gray-600">{order.payment_method}</div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-gray-900">{order.customer_name}</div>
-                      <div className="text-sm text-gray-600">{order.customer_email}</div>
-                      <div className="text-sm text-gray-600">{order.customer_phone}</div>
-                    </td>
-                    <td className="py-4 px-6 font-medium text-gray-900">
-                      ${order.total_amount}
+                      <p className="font-semibold text-slate-900">{order.order_number}</p>
+                      <p className="text-xs text-slate-500">{order.payment_method}</p>
                     </td>
                     <td className="py-4 px-6">
-                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusIcon(order.status)}
-                        <span>{getStatusText(order.status)}</span>
-                      </span>
+                      <p className="font-medium text-slate-900">{order.customer_name}</p>
+                      <p className="text-xs text-slate-500">{order.customer_email}</p>
+                      <p className="text-xs text-slate-500">{order.customer_phone}</p>
                     </td>
-                    <td className="py-4 px-6 text-gray-600">
-                      {formatDate(order.created_at)}
+                    <td className="py-4 px-6 font-semibold text-slate-900">
+                      {currencyFormatter.format(Number(order.total_amount || 0))}
                     </td>
                     <td className="py-4 px-6">
-                      <div className="flex items-center space-x-2">
+                      <StatusBadge status={order.status} />
+                    </td>
+                    <td className="py-4 px-6 text-sm text-slate-500">
+                      {dateTimeFormatter.format(new Date(order.created_at))}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => setSelectedOrder(order)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Xem chi tiết"
                         >
                           <Eye className="w-4 h-4" />
@@ -235,13 +270,14 @@ const AdminOrdersPage = () => {
                         <select
                           value={order.status}
                           onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-amber-500 focus:border-transparent"
+                          className="text-xs border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-amber-500 focus:border-transparent"
+                          disabled={updateStatusMutation.isLoading}
                         >
-                          <option value="pending">Chờ xử lý</option>
-                          <option value="paid">Đã thanh toán</option>
-                          <option value="shipped">Đang giao hàng</option>
-                          <option value="delivered">Đã giao hàng</option>
-                          {isAdmin && <option value="cancelled">Đã hủy</option>}
+                          {STATUS_OPTIONS.filter((option) => option.value !== 'all' && (!option.adminOnly || isAdmin)).map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {STATUS_LABELS[option.value]}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </td>
@@ -250,29 +286,30 @@ const AdminOrdersPage = () => {
               </tbody>
             </table>
           </div>
+        ) : (
+          <EmptyState icon={Inbox} title={emptyStateTitle} description={emptyStateDescription} />
         )}
 
-        {/* Pagination */}
-        {pagination.total_pages > 1 && (
-          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200">
-            <div className="text-sm text-gray-600">
-              Hiển thị {orders.length} trong tổng số {pagination.total_count} đơn hàng
+        {orders.length > 0 && (
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-4 border-t border-slate-100">
+            <div className="text-sm text-slate-500">
+              Hiển thị {fromItem}-{toItem} trên tổng số {totalCount} đơn hàng
             </div>
-            <div className="flex space-x-2">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                className="px-3 py-2 border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
               >
                 Trước
               </button>
-              <span className="px-3 py-2 text-gray-600">
-                {currentPage} / {pagination.total_pages}
+              <span className="text-sm text-slate-600">
+                Trang {currentPage} / {pagination.total_pages || 1}
               </span>
               <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.total_pages))}
-                disabled={currentPage === pagination.total_pages}
-                className="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, pagination.total_pages || 1))}
+                disabled={currentPage === (pagination.total_pages || 1)}
+                className="px-3 py-2 border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
               >
                 Sau
               </button>
@@ -281,152 +318,147 @@ const AdminOrdersPage = () => {
         )}
       </div>
 
-      {/* Order Detail Modal */}
       {selectedOrder && (
         <OrderDetailModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
           onStatusUpdate={handleStatusUpdate}
+          isAdmin={isAdmin}
+          isUpdating={updateStatusMutation.isLoading}
+          formatCurrency={(value) => currencyFormatter.format(Number(value || 0))}
+          formatDateTime={(value) => dateTimeFormatter.format(new Date(value))}
         />
       )}
     </div>
   );
 };
 
-const OrderDetailModal = ({ order, onClose, onStatusUpdate }) => {
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
+const StatusBadge = ({ status }) => (
+  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+    STATUS_BADGES[status] || 'bg-slate-100 text-slate-700'
+  }`}>
+    {STATUS_LABELS[status] || status}
+  </span>
+);
 
+const OrdersTableSkeleton = () => (
+  <div className="space-y-3 p-6">
+    {Array.from({ length: 6 }).map((_, index) => (
+      <div key={index} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
+    ))}
+  </div>
+);
+
+const EmptyState = ({ icon: Icon, title, description }) => (
+  <div className="flex flex-col items-center justify-center py-16 text-center space-y-3 text-slate-500">
+    <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+      <Icon className="w-7 h-7 text-slate-400" />
+    </div>
+    <p className="text-lg font-semibold text-slate-700">{title}</p>
+    <p className="text-sm text-slate-500 max-w-md">{description}</p>
+  </div>
+);
+
+const OrderDetailModal = ({ order, onClose, onStatusUpdate, isAdmin, isUpdating, formatCurrency, formatDateTime }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="fixed inset-0 bg-gray-600 opacity-75" onClick={onClose}></div>
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-screen overflow-y-auto">
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">
-              Chi tiết đơn hàng #{order.order_number}
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <XCircle className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-900/50" onClick={onClose} aria-hidden="true" />
+        <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between p-6 border-b border-slate-100">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Chi tiết đơn hàng #{order.order_number}</h2>
+              <p className="text-sm text-slate-500">Tạo lúc {formatDateTime(order.created_at)}</p>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg" aria-label="Đóng">
+              <X className="w-5 h-5" />
             </button>
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Order Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Thông tin đơn hàng</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Mã đơn hàng:</span>
-                    <span className="font-medium">{order.order_number}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Ngày đặt:</span>
-                    <span className="font-medium">{formatDate(order.created_at)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Tổng tiền:</span>
-                    <span className="font-medium text-lg">${order.total_amount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phương thức thanh toán:</span>
-                    <span className="font-medium">{order.payment_method}</span>
-                  </div>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
+                <h3 className="font-semibold text-slate-900">Thông tin đơn hàng</h3>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Mã đơn hàng:</span>
+                  <span className="font-medium text-slate-900">{order.order_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Tổng tiền:</span>
+                  <span className="font-semibold text-emerald-600">{formatCurrency(order.total_amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Thanh toán:</span>
+                  <span className="font-medium text-slate-900">{order.payment_method}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Trạng thái:</span>
+                  <StatusBadge status={order.status} />
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Thông tin khách hàng</h3>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-600">Tên:</span>
-                    <span className="font-medium ml-2">{order.customer_name}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Email:</span>
-                    <span className="font-medium ml-2">{order.customer_email}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">SĐT:</span>
-                    <span className="font-medium ml-2">{order.customer_phone}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Địa chỉ:</span>
-                    <span className="font-medium ml-2">{order.shipping_address}</span>
-                  </div>
-                </div>
+              <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-sm">
+                <h3 className="font-semibold text-slate-900">Thông tin khách hàng</h3>
+                <p><span className="text-slate-500">Tên:</span> <span className="font-medium text-slate-900 ml-2">{order.customer_name}</span></p>
+                <p><span className="text-slate-500">Email:</span> <span className="font-medium text-slate-900 ml-2">{order.customer_email}</span></p>
+                <p><span className="text-slate-500">SĐT:</span> <span className="font-medium text-slate-900 ml-2">{order.customer_phone}</span></p>
+                <p><span className="text-slate-500">Địa chỉ:</span> <span className="font-medium text-slate-900 ml-2">{order.shipping_address}</span></p>
               </div>
             </div>
 
-            {/* Order Items */}
             <div>
-              <h3 className="font-semibold text-gray-900 mb-3">Sản phẩm đã đặt</h3>
+              <h3 className="font-semibold text-slate-900 mb-3">Sản phẩm trong đơn</h3>
               <div className="space-y-3">
                 {order.items?.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4 py-3 border-b border-gray-200 last:border-b-0">
-                    <img
-                      src={item.product_image || '/images/placeholder.jpg'}
-                      alt={item.product_name}
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
+                  <div key={item.id} className="flex items-center gap-4 py-3 border-b border-slate-100 last:border-b-0">
+                    <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden">
+                      {item.product_image ? (
+                        <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Package className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{item.product_name}</h4>
-                      <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
+                      <p className="font-medium text-slate-900">{item.product_name}</p>
+                      <p className="text-sm text-slate-500">Số lượng: {item.quantity}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-gray-900">${item.price_at_purchase}</p>
-                      <p className="text-sm text-gray-600">
-                        Tổng: ${(item.price_at_purchase * item.quantity).toFixed(2)}
-                      </p>
+                      <p className="font-medium text-slate-900">{formatCurrency(item.price_at_purchase)}</p>
+                      <p className="text-xs text-slate-500">Tổng: {formatCurrency(item.price_at_purchase * item.quantity)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Notes */}
             {order.notes && (
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Ghi chú</h3>
-                <p className="text-gray-600 bg-gray-50 rounded-lg p-3">{order.notes}</p>
+                <h3 className="font-semibold text-slate-900 mb-2">Ghi chú</h3>
+                <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4">{order.notes}</p>
               </div>
             )}
+          </div>
 
-            {/* Status Update */}
-            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Cập nhật trạng thái</h3>
-                <select
-                  value={order.status}
-                  onChange={(e) => onStatusUpdate(order.id, e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                >
-                  <option value="pending">Chờ xử lý</option>
-                  <option value="paid">Đã thanh toán</option>
-                  <option value="shipped">Đang giao hàng</option>
-                  <option value="delivered">Đã giao hàng</option>
-                  <option value="cancelled">Đã hủy</option>
-                </select>
-              </div>
-              <button
-                onClick={onClose}
-                className="btn-secondary"
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 border-t border-slate-100">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-slate-700">Cập nhật trạng thái</span>
+              <select
+                value={order.status}
+                onChange={(e) => onStatusUpdate(order.id, e.target.value)}
+                className="px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                disabled={isUpdating}
               >
-                Đóng
-              </button>
+                {STATUS_OPTIONS.filter((option) => option.value !== 'all' && (!option.adminOnly || isAdmin)).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {STATUS_LABELS[option.value]}
+                  </option>
+                ))}
+              </select>
+              {isUpdating && <Loader2 className="w-4 h-4 animate-spin text-amber-600" />}
             </div>
+            <button onClick={onClose} className="btn-secondary">
+              Đóng
+            </button>
           </div>
         </div>
       </div>
