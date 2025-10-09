@@ -78,14 +78,19 @@ const CheckoutPage = () => {
     }
   };
 
-  if (items.length === 0) {
-    navigate('/cart');
-    return null;
-  }
+  useEffect(() => {
+    if (items.length === 0) {
+      navigate('/cart');
+    }
+  }, [items, navigate]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pt-24 sm:pt-28">
