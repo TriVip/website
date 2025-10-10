@@ -1,7 +1,9 @@
+const normalizeOrigin = (origin = '') => origin.replace(/\/$/, '').trim();
+
 const parseList = (value = '') => {
   return value
     .split(',')
-    .map((item) => item.trim())
+    .map((item) => normalizeOrigin(item))
     .filter(Boolean);
 };
 
@@ -22,8 +24,22 @@ if (isProduction && jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be at least 32 characters long in production');
 }
 
-const allowedOrigins = parseList(process.env.ALLOWED_ORIGINS || process.env.FRONTEND_URL || '');
-const allowAllInDev = !allowedOrigins.length && !isProduction;
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  process.env.FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL
+]
+  .map((origin) => normalizeOrigin(origin || ''))
+  .filter(Boolean);
+
+const envOrigins = parseList(process.env.ALLOWED_ORIGINS);
+const allowedOrigins = Array.from(new Set([...envOrigins, ...defaultOrigins]));
+const allowAllInDev = !envOrigins.length && !defaultOrigins.length && !isProduction;
 
 module.exports = {
   allowedOrigins,
