@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useOutletContext
+} from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from 'react-query';
 import {
@@ -9,16 +15,21 @@ import {
   LogOut,
   Menu,
   X,
-  TrendingUp,
-  Users,
-  DollarSign,
-  Package2,
-  RotateCcw,
+  Users2,
   Loader2,
   AlertCircle,
-  Inbox
+  Inbox,
+  MessageCircle,
+  BookOpen,
+  Sparkles,
+  Award,
+  Package2,
+  DollarSign,
+  UserCircle2,
+  PhoneCall,
+  ArrowUpRight,
+  RotateCcw
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { fetchDashboardData } from '../services/api';
 
 const roleLabels = {
@@ -30,6 +41,22 @@ const roleBadgeClasses = {
   admin: 'bg-emerald-100 text-emerald-700',
   sale: 'bg-blue-100 text-blue-700'
 };
+
+const feedbackStatusClasses = {
+  new: 'bg-amber-100 text-amber-700',
+  in_progress: 'bg-blue-100 text-blue-700',
+  resolved: 'bg-emerald-100 text-emerald-700',
+  archived: 'bg-slate-100 text-slate-600'
+};
+
+const MENU_CONFIG = [
+  { name: 'Tổng quan', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'sale'] },
+  { name: 'Đơn hàng', path: '/orders', icon: ShoppingCart, roles: ['admin', 'sale'] },
+  { name: 'Sản phẩm', path: '/products', icon: Package, roles: ['admin'] },
+  { name: 'Khách hàng', path: '/customers', icon: Users2, roles: ['admin', 'sale'] },
+  { name: 'Feedback', path: '/feedback', icon: MessageCircle, roles: ['admin', 'sale'] },
+  { name: 'Blogs', path: '/blogs', icon: BookOpen, roles: ['admin'] }
+];
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -55,8 +82,10 @@ const AdminLayout = () => {
   }, [dashboardData]);
 
   useEffect(() => {
-    if (dashboardData?.user?.role === 'sale' && location.pathname.startsWith('/products')) {
-      navigate('/orders', { replace: true });
+    if (dashboardData?.user?.role === 'sale') {
+      if (location.pathname.startsWith('/products') || location.pathname.startsWith('/blogs')) {
+        navigate('/orders', { replace: true });
+      }
     }
   }, [dashboardData?.user?.role, location.pathname, navigate]);
 
@@ -65,44 +94,29 @@ const AdminLayout = () => {
     navigate('/login');
   };
 
-  const menuItems = useMemo(() => {
-    const commonItems = [
-      { name: 'Tổng quan', path: '/dashboard', icon: LayoutDashboard },
-      { name: 'Đơn hàng', path: '/orders', icon: ShoppingCart }
-    ];
-
-    if (dashboardData?.user?.role === 'admin') {
-      return [
-        ...commonItems,
-        { name: 'Sản phẩm', path: '/products', icon: Package }
-      ];
-    }
-
-    return commonItems;
-  }, [dashboardData?.user?.role]);
-
   const userRole = dashboardData?.user?.role;
-  const roleLabel = roleLabels[userRole] || 'Thành viên';
-  const badgeClass = roleBadgeClasses[userRole] || 'bg-slate-100 text-slate-700';
+  const menuItems = useMemo(
+    () => MENU_CONFIG.filter((item) => !item.roles || item.roles.includes(userRole)),
+    [userRole]
+  );
+
   const formattedLastUpdated = lastUpdated
     ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : '--:--';
+
   const isInitialLoading = isLoading && !dashboardData;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-slate-50">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        >
-          <div className="absolute inset-0 bg-gray-600 opacity-50" />
-        </div>
+        />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 backdrop-blur border-r border-slate-100 shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white/95 backdrop-blur border-r border-slate-100 shadow-xl transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -134,18 +148,20 @@ const AdminLayout = () => {
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
-                  `group flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
+                  `group flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 ${
                     isActive
                       ? 'bg-amber-50 text-amber-700 shadow-sm'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`
                 }
               >
-                <span className={`p-2 rounded-md ${
-                  location.pathname.startsWith(item.path)
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
-                }`}>
+                <span
+                  className={`p-2 rounded-md transition-colors ${
+                    location.pathname.startsWith(item.path)
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+                  }`}
+                >
                   <Icon className="w-5 h-5" />
                 </span>
                 <span className="font-medium">{item.name}</span>
@@ -159,6 +175,7 @@ const AdminLayout = () => {
             <p className="text-xs uppercase tracking-wide text-slate-500">Đăng nhập</p>
             <p className="text-sm font-semibold text-slate-900">{dashboardData?.user?.name || 'Admin'}</p>
             <p className="text-xs text-slate-500 truncate">{dashboardData?.user?.email}</p>
+            <p className="text-xs text-slate-400 mt-2">Cập nhật lúc {formattedLastUpdated}</p>
           </div>
           <button
             onClick={handleLogout}
@@ -170,9 +187,9 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      <div className="lg:pl-72">
-        <header className="bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm sticky top-0 z-30">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+      <div className="lg:pl-72 flex flex-col min-h-screen">
+        <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/90 backdrop-blur">
+          <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -182,46 +199,60 @@ const AdminLayout = () => {
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               <div>
-                <p className="text-sm text-slate-500">Xin chào,</p>
-                <div className="flex items-center space-x-3">
-                  <span className="font-semibold text-slate-900">
-                    {dashboardData?.user?.name || 'Admin'}
-                  </span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${badgeClass}`}>
-                    {roleLabel}
+                <p className="text-xs text-slate-500">Xin chào,</p>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-slate-900">{dashboardData?.user?.name || 'Admin'}</span>
+                  <span className={`px-2 py-1 text-xs rounded-full ${roleBadgeClasses[userRole] || 'bg-slate-100 text-slate-700'}`}>
+                    {roleLabels[userRole] || 'Thành viên'}
                   </span>
                 </div>
               </div>
             </div>
-
             <div className="flex items-center space-x-3">
-              {isLoading && (
-                <span className="hidden sm:flex items-center text-xs text-amber-600 space-x-1">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Đang đồng bộ...</span>
-                </span>
-              )}
-              <div className="hidden sm:block text-xs text-slate-500">
+              <span className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+                <Sparkles className="w-4 h-4 text-amber-500" />
                 Cập nhật: <span className="font-medium text-slate-700">{formattedLastUpdated}</span>
-              </div>
+              </span>
               <button
                 onClick={() => refetch()}
-                className="inline-flex items-center space-x-2 px-3 py-2 text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                className="inline-flex items-center space-x-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-100 transition-colors"
               >
-                <RotateCcw className="w-4 h-4" />
-                <span>Tải lại</span>
+                <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-500' : ''}`} />
+                <span>Làm mới</span>
               </button>
             </div>
           </div>
           {isError && (
-            <div className="bg-red-50 border-t border-red-100 px-4 sm:px-6 lg:px-8 py-2 text-sm text-red-600 flex items-center space-x-2">
+            <div className="bg-red-50 border-t border-red-100 px-4 py-2 text-sm text-red-600 sm:px-6 lg:px-8 flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
               <span>Không thể tải dữ liệu tổng quan. Vui lòng thử lại.</span>
             </div>
           )}
         </header>
 
-        <main className="p-4 sm:p-6 lg:p-8">
+        <div className="lg:hidden border-b border-slate-100 bg-white/90 backdrop-blur">
+          <div className="flex items-center space-x-3 overflow-x-auto px-4 py-3 sm:px-6">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname.startsWith(item.path);
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex flex-shrink-0 items-center space-x-2 rounded-full border px-3 py-2 text-sm transition-colors ${
+                    isActive ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.name}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+
+        <main className="flex-1 px-4 pb-8 pt-6 sm:px-6 lg:px-8">
           {isInitialLoading ? (
             <div className="min-h-[60vh] flex items-center justify-center">
               <div className="flex flex-col items-center space-y-3 text-slate-500">
@@ -230,7 +261,7 @@ const AdminLayout = () => {
               </div>
             </div>
           ) : (
-            <Outlet context={{ dashboardData, isLoading }} />
+            <Outlet context={{ dashboardData, isLoading, isError, refetch, lastUpdated }} />
           )}
         </main>
       </div>
@@ -239,67 +270,92 @@ const AdminLayout = () => {
 };
 
 const AdminDashboardPage = () => {
-  const { data: dashboardData, isLoading, isError, refetch } = useQuery('dashboard-data', fetchDashboardData, {
-    refetchOnWindowFocus: false,
-    staleTime: 60000
-  });
+  const outletContext = useOutletContext() || {};
+  const { dashboardData, isLoading, isError, refetch, lastUpdated } = outletContext;
 
-  const numberFormatter = useMemo(
-    () => new Intl.NumberFormat('vi-VN'),
-    []
+  const numberFormatter = useMemo(() => new Intl.NumberFormat('vi-VN'), []);
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }), []);
+  const heroLastUpdated = useMemo(
+    () =>
+      lastUpdated
+        ? lastUpdated.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : 'Đang đồng bộ...'
+    ,
+    [lastUpdated]
   );
 
-  const currencyFormatter = useMemo(
-    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }),
-    []
+  const stats = useMemo(
+    () => [
+      {
+        name: 'Tổng sản phẩm',
+        value: numberFormatter.format(dashboardData?.stats?.total_products || 0),
+        icon: Package2,
+        color: 'bg-blue-100 text-blue-600'
+      },
+      {
+        name: 'Tổng đơn hàng',
+        value: numberFormatter.format(dashboardData?.stats?.total_orders || 0),
+        icon: ShoppingCart,
+        color: 'bg-emerald-100 text-emerald-600'
+      },
+      {
+        name: 'Doanh thu',
+        value: currencyFormatter.format(Number(dashboardData?.stats?.total_revenue || 0)),
+        icon: DollarSign,
+        color: 'bg-amber-100 text-amber-600'
+      },
+      {
+        name: 'Khách hàng',
+        value: numberFormatter.format(dashboardData?.customer_summary?.total_customers || 0),
+        icon: Users2,
+        color: 'bg-purple-100 text-purple-600'
+      }
+    ],
+    [currencyFormatter, dashboardData, numberFormatter]
   );
 
-  const stats = useMemo(() => [
-    {
-      name: 'Tổng sản phẩm',
-      value: numberFormatter.format(dashboardData?.stats?.total_products || 0),
-      icon: Package2,
-      color: 'text-blue-600 bg-blue-100'
-    },
-    {
-      name: 'Tổng đơn hàng',
-      value: numberFormatter.format(dashboardData?.stats?.total_orders || 0),
-      icon: ShoppingCart,
-      color: 'text-emerald-600 bg-emerald-100'
-    },
-    {
-      name: 'Doanh thu',
-      value: currencyFormatter.format(Number(dashboardData?.stats?.total_revenue || 0)),
-      icon: DollarSign,
-      color: 'text-amber-600 bg-amber-100'
-    },
-    {
-      name: 'Khách hàng',
-      value: numberFormatter.format(dashboardData?.stats?.total_customers || 0),
-      icon: Users,
-      color: 'text-purple-600 bg-purple-100'
-    }
-  ], [currencyFormatter, dashboardData?.stats, numberFormatter]);
-
-  const revenueChart = useMemo(() => {
-    if (dashboardData?.revenue_chart?.length) {
-      return dashboardData.revenue_chart;
-    }
-
-    return [
-      { day: 'T2', revenue: 1200 },
-      { day: 'T3', revenue: 1800 },
-      { day: 'T4', revenue: 1500 },
-      { day: 'T5', revenue: 2200 },
-      { day: 'T6', revenue: 1900 },
-      { day: 'T7', revenue: 2500 },
-      { day: 'CN', revenue: 2100 }
-    ];
-  }, [dashboardData?.revenue_chart]);
+  const engagementHighlights = useMemo(
+    () => [
+      {
+        title: 'Feedback cần xử lý',
+        value: numberFormatter.format(
+          (dashboardData?.feedback_summary?.new || 0) + (dashboardData?.feedback_summary?.in_progress || 0)
+        ),
+        subtitle: 'Theo dõi yêu cầu khách hàng để phản hồi kịp thời',
+        icon: MessageCircle,
+        accent: 'bg-rose-50 text-rose-600'
+      },
+      {
+        title: 'Bài viết đã xuất bản',
+        value: numberFormatter.format(dashboardData?.blog_summary?.published || 0),
+        subtitle: 'Nội dung truyền thông đang hiển thị trên website',
+        icon: BookOpen,
+        accent: 'bg-sky-50 text-sky-600'
+      },
+      {
+        title: 'Khách hàng VIP',
+        value: numberFormatter.format(dashboardData?.customer_summary?.vip_customers || 0),
+        subtitle: 'Khách hàng thân thiết cần được chăm sóc đặc biệt',
+        icon: Award,
+        accent: 'bg-emerald-50 text-emerald-600'
+      }
+    ],
+    [dashboardData, numberFormatter]
+  );
 
   const recentOrders = useMemo(
     () => (dashboardData?.recent_orders || []).slice(0, 5),
     [dashboardData?.recent_orders]
+  );
+
+  const recentFeedbacks = useMemo(
+    () => dashboardData?.recent_feedbacks || [],
+    [dashboardData?.recent_feedbacks]
+  );
+
+  const topCustomers = useMemo(
+    () => dashboardData?.top_customers || [],
+    [dashboardData?.top_customers]
   );
 
   const statusLabels = {
@@ -335,10 +391,7 @@ const AdminDashboardPage = () => {
           <AlertCircle className="w-10 h-10" />
           <p className="text-lg font-semibold">Không thể tải dữ liệu tổng quan</p>
           <p className="text-sm text-red-500">Vui lòng kiểm tra kết nối và thử lại.</p>
-          <button
-            onClick={() => refetch()}
-            className="btn-primary px-5"
-          >
+          <button onClick={() => refetch()} className="btn-primary px-5">
             Thử lại
           </button>
         </div>
@@ -348,25 +401,32 @@ const AdminDashboardPage = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Tổng quan hoạt động</h1>
-          <p className="text-slate-500">Theo dõi tình hình kinh doanh và hiệu suất đơn hàng gần đây.</p>
+      <div className="rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 p-6 text-white shadow-lg">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wide opacity-80">Tổng quan nhanh</p>
+            <h1 className="mt-1 text-2xl font-semibold md:text-3xl">
+              Xin chào, {dashboardData?.user?.name || 'Admin'}!
+            </h1>
+            <p className="mt-2 text-sm md:text-base opacity-90">
+              Theo dõi hiệu suất kinh doanh và chăm sóc khách hàng ngay trên thiết bị di động của bạn.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl bg-white/20 px-4 py-3 backdrop-blur">
+            <Sparkles className="w-5 h-5" />
+            <div>
+              <p className="text-xs uppercase tracking-wider opacity-80">Cập nhật lần cuối</p>
+              <p className="text-sm font-semibold">{heroLastUpdated}</p>
+            </div>
+          </div>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="btn-primary flex items-center space-x-2 self-start md:self-auto"
-        >
-          <RotateCcw className="w-5 h-5" />
-          <span>Làm mới dữ liệu</span>
-        </button>
       </div>
 
       <section>
         {isLoading ? (
           <StatsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -393,139 +453,264 @@ const AdminDashboardPage = () => {
         )}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-900">Doanh thu 7 ngày qua</h2>
-              <p className="text-sm text-slate-500">Cập nhật tự động sau mỗi 30 giây</p>
-            </div>
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
-          </div>
-
-          {isLoading ? (
-            <div className="h-64 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
-            </div>
-          ) : (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueChart} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    formatter={(value) => [currencyFormatter.format(value), 'Doanh thu']}
-                    labelStyle={{ color: '#0f172a', fontWeight: 600 }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '12px'
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#f59e0b"
-                    strokeWidth={3}
-                    dot={{ r: 4, strokeWidth: 2, fill: '#f59e0b' }}
-                    activeDot={{ r: 6, stroke: '#f97316', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Thông tin nhanh</h2>
-          <div className="space-y-4 text-sm text-slate-600">
-            <div className="flex items-center justify-between">
-              <span>Tài khoản</span>
-              <span className="font-medium text-slate-900">{dashboardData?.user?.name || '---'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Vai trò</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${roleBadgeClasses[dashboardData?.user?.role] || 'bg-slate-100 text-slate-700'}`}>
-                {roleLabels[dashboardData?.user?.role] || 'Chưa xác định'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Đơn hàng trong ngày</span>
-              <span className="font-medium text-slate-900">{numberFormatter.format(dashboardData?.stats?.orders_today || 0)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Doanh thu hôm nay</span>
-              <span className="font-medium text-emerald-600">{currencyFormatter.format(Number(dashboardData?.stats?.revenue_today || 0))}</span>
-            </div>
-          </div>
-        </div>
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {engagementHighlights.map((item, index) => {
+          const Icon = item.icon;
+          return (
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{item.title}</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+                </div>
+                <div className={`rounded-xl p-3 ${item.accent}`}>
+                  <Icon className="w-6 h-6" />
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-slate-500 leading-relaxed">{item.subtitle}</p>
+            </motion.div>
+          );
+        })}
       </section>
 
-      <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-slate-900">Đơn hàng gần đây</h2>
-          <span className="text-sm text-slate-500">Hiển thị 5 đơn hàng mới nhất</span>
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-900">Đơn hàng gần đây</h2>
+                <p className="text-sm text-slate-500">Theo dõi 5 đơn hàng mới nhất và trạng thái xử lý</p>
+              </div>
+              <ArrowUpRight className="hidden sm:block w-5 h-5 text-amber-500" />
+            </div>
+
+            {isLoading ? (
+              <OrdersSkeleton />
+            ) : recentOrders.length ? (
+              <>
+                <div className="hidden lg:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                          <th className="py-3 px-4">Mã đơn hàng</th>
+                          <th className="py-3 px-4">Khách hàng</th>
+                          <th className="py-3 px-4">Tổng tiền</th>
+                          <th className="py-3 px-4">Trạng thái</th>
+                          <th className="py-3 px-4">Ngày tạo</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {recentOrders.map((order) => (
+                          <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-4 px-4">
+                              <p className="font-semibold text-slate-900">{order.order_number}</p>
+                              <p className="text-xs text-slate-500">{order.payment_method}</p>
+                            </td>
+                            <td className="py-4 px-4">
+                              <p className="font-medium text-slate-900">{order.customer_name}</p>
+                              <p className="text-xs text-slate-500">{order.customer_email}</p>
+                            </td>
+                            <td className="py-4 px-4 font-semibold text-slate-900">
+                              {currencyFormatter.format(Number(order.total_amount || 0))}
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                statusClasses[order.status] || 'bg-slate-100 text-slate-700'
+                              }`}
+                              >
+                                {statusLabels[order.status] || order.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-500">{formatDate(order.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="space-y-4 lg:hidden">
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className="rounded-2xl border border-slate-100 p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">{order.order_number}</p>
+                          <p className="text-xs text-slate-500">{formatDate(order.created_at)}</p>
+                        </div>
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          statusClasses[order.status] || 'bg-slate-100 text-slate-700'
+                        }`}
+                        >
+                          {statusLabels[order.status] || order.status}
+                        </span>
+                      </div>
+                      <div className="mt-4 space-y-2 text-sm text-slate-600">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500">Khách hàng</span>
+                          <span className="font-medium text-slate-900">{order.customer_name}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500">Tổng tiền</span>
+                          <span className="font-semibold text-slate-900">
+                            {currencyFormatter.format(Number(order.total_amount || 0))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                icon={Inbox}
+                title="Chưa có đơn hàng"
+                description="Khi có đơn hàng mới, bạn sẽ nhìn thấy tại đây."
+              />
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-slate-900 mb-6">Khách hàng nổi bật</h2>
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            ) : topCustomers.length ? (
+              <div className="space-y-4">
+                {topCustomers.map((customer) => (
+                  <div key={customer.email} className="rounded-2xl border border-slate-100 p-4 hover:border-amber-200 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="rounded-full bg-amber-50 p-3 text-amber-600">
+                          <UserCircle2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{customer.name || customer.email}</p>
+                          <p className="text-xs text-slate-500">{customer.email}</p>
+                        </div>
+                      </div>
+                      {customer.vip_status !== 'standard' && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
+                          <Award className="w-4 h-4" /> {customer.vip_status?.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-500">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide">Số đơn</p>
+                        <p className="font-semibold text-slate-900">{numberFormatter.format(customer.total_orders || 0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide">Tổng chi tiêu</p>
+                        <p className="font-semibold text-slate-900">
+                          {currencyFormatter.format(Number(customer.total_spent || 0))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Users2}
+                title="Chưa có dữ liệu khách hàng"
+                description="Khách hàng sẽ xuất hiện tại đây sau khi có đơn hàng."
+              />
+            )}
+          </div>
         </div>
 
-        {isLoading ? (
-          <OrdersSkeleton />
-        ) : recentOrders.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                  <th className="py-3 px-4">Mã đơn hàng</th>
-                  <th className="py-3 px-4">Khách hàng</th>
-                  <th className="py-3 px-4">Tổng tiền</th>
-                  <th className="py-3 px-4">Trạng thái</th>
-                  <th className="py-3 px-4">Ngày tạo</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-4">
-                      <p className="font-semibold text-slate-900">{order.order_number}</p>
-                      <p className="text-xs text-slate-500">{order.payment_method}</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="font-medium text-slate-900">{order.customer_name}</p>
-                      <p className="text-xs text-slate-500">{order.customer_email}</p>
-                    </td>
-                    <td className="py-4 px-4 font-semibold text-slate-900">
-                      {currencyFormatter.format(Number(order.total_amount || 0))}
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                        statusClasses[order.status] || 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {statusLabels[order.status] || order.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-sm text-slate-500">
-                      {formatDate(order.created_at)}
-                    </td>
-                  </tr>
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-slate-900 mb-6">Feedback mới nhất</h2>
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : recentFeedbacks.length ? (
+              <div className="space-y-4">
+                {recentFeedbacks.map((feedback) => (
+                  <div key={feedback.id} className="rounded-2xl border border-slate-100 p-4 hover:border-amber-200 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="rounded-full bg-rose-50 p-3 text-rose-500">
+                          <MessageCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">{feedback.customer_name || feedback.customer_email}</p>
+                          <p className="text-xs text-slate-500">{feedback.customer_email}</p>
+                          <p className="mt-2 text-sm text-slate-600 line-clamp-2">{feedback.message}</p>
+                        </div>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        feedbackStatusClasses[feedback.status] || 'bg-slate-100 text-slate-600'
+                      }`}
+                      >
+                        {feedback.status === 'in_progress' ? 'Đang xử lý' : feedback.status === 'new' ? 'Mới' : feedback.status === 'resolved' ? 'Đã xử lý' : 'Lưu trữ'}
+                      </span>
+                    </div>
+                    {feedback.rating ? (
+                      <div className="mt-3 flex items-center gap-2 text-xs font-medium text-amber-600">
+                        <Sparkles className="w-4 h-4" />
+                        {feedback.rating}/5 đánh giá
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={MessageCircle}
+                title="Chưa có phản hồi"
+                description="Khi khách hàng gửi feedback, bạn sẽ thấy thông tin tại đây."
+              />
+            )}
           </div>
-        ) : (
-          <EmptyState
-            icon={Inbox}
-            title="Chưa có đơn hàng"
-            description="Khi có đơn hàng mới, bạn sẽ nhìn thấy tại đây."
-          />
-        )}
+
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-slate-900 mb-6">Liên hệ nhanh</h2>
+            <div className="space-y-4 text-sm text-slate-600">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                    <PhoneCall className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">Hotline chăm sóc khách hàng</p>
+                    <p className="text-xs text-slate-500">Hỗ trợ khách hàng VIP và phản hồi nhanh</p>
+                  </div>
+                </div>
+                <a
+                  href="tel:19001234"
+                  className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-200"
+                >
+                  1900 1234
+                </a>
+              </div>
+              <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500">
+                Đừng quên ghi chú kết quả sau mỗi cuộc gọi trong phần quản lý khách hàng để đội ngũ nắm thông tin chính xác.
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );
 };
 
 const StatsSkeleton = () => (
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
     {Array.from({ length: 4 }).map((_, index) => (
       <div key={index} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 animate-pulse">
         <div className="h-4 w-24 bg-slate-200 rounded mb-4" />

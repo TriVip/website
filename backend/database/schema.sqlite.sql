@@ -73,6 +73,35 @@ CREATE TABLE IF NOT EXISTS blog_posts (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Customer feedback table
+CREATE TABLE IF NOT EXISTS customer_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_name VARCHAR(255),
+    customer_email VARCHAR(255),
+    customer_phone VARCHAR(20),
+    message TEXT NOT NULL,
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    status VARCHAR(20) DEFAULT 'new' CHECK (status IN ('new', 'in_progress', 'resolved', 'archived')),
+    admin_notes TEXT,
+    follow_up_date DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Customer profiles table
+CREATE TABLE IF NOT EXISTS customer_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    phone VARCHAR(50),
+    note TEXT,
+    tags TEXT DEFAULT '[]',
+    vip_status VARCHAR(50) DEFAULT 'standard',
+    last_contacted_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
@@ -83,3 +112,5 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
 CREATE INDEX IF NOT EXISTS idx_blog_posts_published ON blog_posts(is_published, published_at);
+CREATE INDEX IF NOT EXISTS idx_customer_feedback_status ON customer_feedback(status);
+CREATE INDEX IF NOT EXISTS idx_customer_profiles_vip ON customer_profiles(vip_status);

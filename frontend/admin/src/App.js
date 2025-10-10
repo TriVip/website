@@ -8,6 +8,9 @@ import AdminLoginPage from './pages/AdminLoginPage';
 import { AdminLayout, AdminDashboardPage } from './pages/AdminDashboardPage';
 import AdminProductsPage from './pages/AdminProductsPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
+import AdminFeedbackPage from './pages/AdminFeedbackPage';
+import AdminCustomersPage from './pages/AdminCustomersPage';
+import AdminBlogsPage from './pages/AdminBlogsPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -33,6 +36,9 @@ function App() {
               <Route path="dashboard" element={<AdminDashboardPage />} />
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
+              <Route path="customers" element={<AdminCustomersPage />} />
+              <Route path="feedback" element={<AdminFeedbackPage />} />
+              <Route path="blogs" element={<AdminBlogsPage />} />
               <Route path="" element={<Navigate to="/dashboard" replace />} />
             </Route>
 
