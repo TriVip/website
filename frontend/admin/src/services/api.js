@@ -1,8 +1,26 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  const envUrl = process.env.REACT_APP_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(hostname);
+
+    if (!isLocalhost) {
+      return `${origin.replace(/\/$/, '')}/api`;
+    }
+  }
+
+  return '/api';
+};
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: '/api', // Use relative URL since we have proxy configured
+  baseURL: getBaseURL(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
