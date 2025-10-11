@@ -225,6 +225,7 @@ Website được thiết kế responsive hoàn toàn, hỗ trợ tất cả các
 - Quản lý sản phẩm (CRUD)
 - Quản lý đơn hàng và cập nhật trạng thái
 - Giao diện admin thân thiện
+- Hỗ trợ cấu hình endpoint API động qua biến môi trường `REACT_APP_API_URL`
 
 ## 🎨 Thiết kế UI/UX
 
@@ -280,6 +281,8 @@ git subtree push --prefix backend heroku main
 ```bash
 # Build production
 cd frontend
+# Thiết lập biến môi trường cho endpoint API trước khi build (ví dụ trên Vercel/Netlify)
+# REACT_APP_API_URL=https://api.rareparfume.com/api
 npm run build
 
 # Deploy to Vercel
