@@ -150,14 +150,42 @@ const fetchOrderItems = async (orderId) => {
   }));
 };
 
-const requireRole = (...roles) => (req, res, next) => {
-  const userRole = req.admin?.role;
+// Role-based access control middleware
+const requireRole = (...allowedRoles) => {
+  // Normalize roles - handle both array and spread arguments
+  const roles = allowedRoles.length === 1 && Array.isArray(allowedRoles[0])
+    ? allowedRoles[0]
+    : allowedRoles;
 
-  if (!userRole || !roles.includes(userRole)) {
-    return res.status(403).json({ error: 'Access denied' });
+  if (!Array.isArray(roles) || roles.length === 0) {
+    throw new Error('requireRole requires at least one allowed role');
   }
 
-  next();
+  return (req, res, next) => {
+    // Check if user is authenticated first
+    if (!req.admin) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userRole = req.admin.role;
+
+    if (!userRole) {
+      return res.status(403).json({ error: 'User role not found' });
+    }
+
+    // Check if user role is in allowed roles (case-insensitive)
+    const normalizedUserRole = String(userRole).toLowerCase();
+    const normalizedAllowedRoles = roles.map(r => String(r).toLowerCase());
+
+    if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
+      return res.status(403).json({ 
+        error: 'Access denied',
+        message: `Required roles: ${roles.join(', ')}. Your role: ${userRole}`
+      });
+    }
+
+    next();
+  };
 };
 
 // Middleware to verify admin token
@@ -200,9 +228,13 @@ router.post('/login', [
     }
 
     const { email, password } = req.body;
+    
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = (email || '').toLowerCase().trim();
+    
     const admin = await dbGet(
-      'SELECT id, email, password_hash, name, role FROM admin_users WHERE email = ? AND is_active = 1',
-      [email]
+      'SELECT id, email, password_hash, name, role FROM admin_users WHERE LOWER(email) = ? AND is_active = 1',
+      [normalizedEmail]
     );
 
     if (!admin) {
@@ -237,14 +269,16 @@ router.post('/login', [
   }
 });
 
-// Apply admin middleware to all routes below (except login)
-router.use('/dashboard', verifyAdminToken);
-router.use('/orders', verifyAdminToken);
-router.use('/products', verifyAdminToken);
-router.use('/profile', verifyAdminToken);
-router.use('/feedbacks', verifyAdminToken);
-router.use('/customers', verifyAdminToken);
-router.use('/blogs', verifyAdminToken);
+// Apply admin authentication middleware to all routes below (except login)
+// This ensures req.admin is set before any route handlers
+router.use(async (req, res, next) => {
+  // Skip authentication for login route
+  if (req.path === '/login' || req.path.startsWith('/login')) {
+    return next();
+  }
+  // Call verifyAdminToken middleware
+  await verifyAdminToken(req, res, next);
+});
 
 // GET /api/admin/orders - Get all orders
 router.get('/orders',
@@ -315,9 +349,9 @@ async (req, res) => {
   }
 });
 
-// PUT /api/admin/orders/:id - Update order status
+// PUT /api/admin/orders/:id - Update order status (Admin only)
 router.put('/orders/:id',
-  requireRole('admin', 'sale'),
+  requireRole('admin'),
   [
   body('status').isIn(['pending', 'paid', 'shipped', 'delivered', 'cancelled'])
   ],
@@ -574,7 +608,7 @@ router.delete('/products/:id', requireRole('admin'), async (req, res) => {
 
 // Feedback management
 router.get('/feedbacks',
-  requireRole('admin', 'sale'),
+  requireRole('admin'),
   [
     query('status').optional().isIn(['all', ...FEEDBACK_STATUSES]),
     query('page').optional().isInt({ min: 1 }),
@@ -793,9 +827,9 @@ async (req, res) => {
   }
 });
 
-// Customer management
+// Customer management (Admin only)
 router.get('/customers',
-  requireRole('admin', 'sale'),
+  requireRole('admin'),
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
@@ -936,7 +970,7 @@ async (req, res) => {
   }
 });
 
-router.get('/customers/:email', requireRole('admin', 'sale'), async (req, res) => {
+router.get('/customers/:email', requireRole('admin'), async (req, res) => {
   try {
     const { email } = req.params;
 
