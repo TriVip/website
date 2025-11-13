@@ -28,30 +28,89 @@ const AdminLoginPage = () => {
   const isFormValid = isValid && emailValue && passwordValue;
 
   useEffect(() => {
+    // Redirect to dashboard if already logged in
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
     const rememberedEmail = localStorage.getItem('adminRememberedEmail');
     if (rememberedEmail) {
       setValue('email', rememberedEmail);
       setRememberMe(true);
     }
-  }, [setValue]);
+  }, [setValue, navigate]);
 
   const onSubmit = async (data) => {
+    console.log('🔵 [LoginPage] onSubmit called with data:', { email: data.email });
     setIsLoading(true);
     try {
+      console.log('🔵 [LoginPage] Calling adminLogin API...');
       const response = await adminLogin(data);
-      localStorage.setItem('adminToken', response.token);
+      console.log('🔵 [LoginPage] Login API response received:', { 
+        hasToken: !!response.token, 
+        tokenLength: response.token?.length,
+        responseKeys: Object.keys(response)
+      });
+      
+      // Ensure token is saved before navigation
+      if (response.token) {
+        console.log('🔵 [LoginPage] Saving token to localStorage...');
+        localStorage.setItem('adminToken', response.token);
+        const savedToken = localStorage.getItem('adminToken');
+        console.log('🔵 [LoginPage] Token saved. Verification:', { 
+          saved: !!savedToken, 
+          length: savedToken?.length,
+          matches: savedToken === response.token
+        });
+        
+        if (rememberMe) {
+          localStorage.setItem('adminRememberedEmail', data.email);
+        } else {
+          localStorage.removeItem('adminRememberedEmail');
+        }
 
-      if (rememberMe) {
-        localStorage.setItem('adminRememberedEmail', data.email);
+        toast.success('Đăng nhập thành công!');
+        
+        console.log('🔵 [LoginPage] About to navigate to /dashboard...');
+        // Small delay to ensure localStorage is updated before navigation
+        // This prevents race conditions with API calls in AdminLayout
+        setTimeout(() => {
+          console.log('🔵 [LoginPage] Navigating to /dashboard now...');
+          navigate('/dashboard', { replace: true });
+        }, 100);
       } else {
-        localStorage.removeItem('adminRememberedEmail');
+        console.error('🔴 [LoginPage] No token in response!', response);
+        throw new Error('Token không được trả về từ server');
       }
-
-      toast.success('Đăng nhập thành công!');
-      navigate('/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Email hoặc mật khẩu không đúng');
+      console.error('🔴 [LoginPage] Login error:', error);
+      console.error('🔴 [LoginPage] Error details:', {
+        message: error.message,
+        originalError: error.originalError,
+        response: error.response?.data || error.data,
+        status: error.response?.status || error.status,
+        stack: error.stack
+      });
+      
+      // Display user-friendly error message
+      const errorMessage = error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+      toast.error(errorMessage, {
+        duration: 5000,
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+          padding: '16px',
+          borderRadius: '8px',
+          fontSize: '14px'
+        }
+      });
+      
+      // Log detailed error for debugging
+      if (error.originalError) {
+        console.error('🔴 [LoginPage] Original error:', error.originalError);
+      }
     } finally {
       setIsLoading(false);
     }

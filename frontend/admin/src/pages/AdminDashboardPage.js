@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  NavLink,
-  Outlet,
-  useLocation,
-  useNavigate,
-  useOutletContext
-} from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from 'react-query';
 import {
@@ -31,6 +25,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { fetchDashboardData } from '../services/api';
+import toast from 'react-hot-toast';
 
 const roleLabels = {
   admin: 'Quản trị viên',
@@ -64,16 +59,125 @@ const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
 
+  // Check if user has token before making API calls
+  const [hasToken, setHasToken] = useState(() => {
+    const token = localStorage.getItem('adminToken');
+    console.log('🟣 [AdminLayout] Initial token check:', { hasToken: !!token, tokenLength: token?.length });
+    return !!token;
+  });
+
+  // Update token state when it changes
+  useEffect(() => {
+    const checkToken = () => {
+      const token = localStorage.getItem('adminToken');
+      const newHasToken = !!token;
+      console.log('🟣 [AdminLayout] Token check:', { 
+        hasToken: newHasToken, 
+        tokenLength: token?.length,
+        currentState: hasToken
+      });
+      setHasToken(newHasToken);
+    };
+
+    // Check token on mount
+    console.log('🟣 [AdminLayout] Component mounted, checking token...');
+    checkToken();
+    
+    // Listen for storage changes (when token is removed in another tab/window)
+    window.addEventListener('storage', checkToken);
+    
+    return () => {
+      window.removeEventListener('storage', checkToken);
+    };
+  }, []);
+
+  console.log('🟣 [AdminLayout] Render:', { 
+    hasToken, 
+    willFetch: hasToken,
+    currentPath: location.pathname 
+  });
+
   const {
     data: dashboardData,
     isLoading,
     isError,
     refetch
   } = useQuery('dashboard-data', fetchDashboardData, {
+    enabled: hasToken, // Only fetch if token exists
     refetchInterval: 30000,
     refetchOnWindowFocus: false,
-    staleTime: 60000
+    staleTime: 60000,
+    retry: (failureCount, error) => {
+      console.log('🟣 [AdminLayout] Query retry check:', {
+        failureCount,
+        status: error?.response?.status,
+        willRetry: error?.response?.status !== 401 && failureCount < 2
+      });
+      // Don't retry on 401 errors
+      if (error?.response?.status === 401) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    onSuccess: (data) => {
+      console.log('🟣 [AdminLayout] Query success:', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        userEmail: data?.user?.email
+      });
+    },
+    onError: (error) => {
+      const errorStatus = error?.response?.status || error?.status;
+      const errorMessage = error?.message || 'Không thể tải dữ liệu';
+      
+      console.error('🔴 [AdminLayout] Query error:', {
+        status: errorStatus,
+        message: errorMessage,
+        originalError: error?.originalError,
+        data: error?.response?.data || error?.data,
+        isAuthError: error?.isAuthError || errorStatus === 401,
+        stack: error?.stack
+      });
+      
+      // If we get 401, remove token and redirect
+      if (errorStatus === 401 || error?.isAuthError) {
+        console.warn('🟡 [AdminLayout] 401 error - removing token and redirecting');
+        localStorage.removeItem('adminToken');
+        setHasToken(false);
+        
+        // Show error toast
+        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', {
+          duration: 4000,
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px'
+          }
+        });
+      } else {
+        // Show other errors
+        toast.error(`Lỗi: ${errorMessage}`, {
+          duration: 5000,
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            padding: '16px',
+            borderRadius: '8px'
+          }
+        });
+      }
+    }
   });
+
+  // Redirect to login if no token
+  useEffect(() => {
+    console.log('🟣 [AdminLayout] Token check effect:', { hasToken, currentPath: location.pathname });
+    if (!hasToken) {
+      console.warn('🟡 [AdminLayout] No token - redirecting to login');
+      navigate('/login', { replace: true });
+    }
+  }, [hasToken, navigate, location.pathname]);
 
   useEffect(() => {
     if (dashboardData) {
@@ -188,8 +292,8 @@ const AdminLayout = () => {
       </aside>
 
       <div className="lg:pl-72 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/90 backdrop-blur">
-          <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <header className="bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm sticky top-0 z-30">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 h-auto sm:h-16 px-4 sm:px-6 lg:px-8 py-3 sm:py-0">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -199,26 +303,34 @@ const AdminLayout = () => {
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
               <div>
-                <p className="text-xs text-slate-500">Xin chào,</p>
-                <div className="flex items-center space-x-2">
-                  <span className="font-semibold text-slate-900">{dashboardData?.user?.name || 'Admin'}</span>
-                  <span className={`px-2 py-1 text-xs rounded-full ${roleBadgeClasses[userRole] || 'bg-slate-100 text-slate-700'}`}>
-                    {roleLabels[userRole] || 'Thành viên'}
+                <p className="text-xs sm:text-sm text-slate-500">Xin chào,</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 gap-1 sm:gap-0">
+                  <span className="text-sm sm:text-base font-semibold text-slate-900">
+                    {dashboardData?.user?.name || 'Admin'}
+                  </span>
+                  <span className={`px-2 py-0.5 sm:py-1 text-xs rounded-full w-fit ${badgeClass}`}>
+                    {roleLabel}
                   </span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <span className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+              {isLoading && (
+                <span className="flex items-center text-xs text-amber-600 space-x-1">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Đang đồng bộ...</span>
+                </span>
+              )}
+              <div className="text-xs text-slate-500">
                 Cập nhật: <span className="font-medium text-slate-700">{formattedLastUpdated}</span>
-              </span>
+              </div>
               <button
                 onClick={() => refetch()}
-                className="inline-flex items-center space-x-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:bg-slate-100 transition-colors"
+                className="inline-flex items-center justify-center space-x-2 px-3 py-2 text-xs sm:text-sm font-medium border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors w-full sm:w-auto"
               >
                 <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-500' : ''}`} />
-                <span>Làm mới</span>
+                <span>Tải lại</span>
               </button>
             </div>
           </div>
@@ -270,8 +382,12 @@ const AdminLayout = () => {
 };
 
 const AdminDashboardPage = () => {
+  // Get data from parent AdminLayout via Outlet context
   const outletContext = useOutletContext() || {};
-  const { dashboardData, isLoading, isError, refetch, lastUpdated } = outletContext;
+  const { dashboardData, isLoading, refetch, lastUpdated } = outletContext;
+  
+  // Handle error state - check if dashboardData is undefined after loading
+  const isError = !isLoading && !dashboardData;
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('vi-VN'), []);
   const currencyFormatter = useMemo(() => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }), []);
@@ -384,6 +500,18 @@ const AdminDashboardPage = () => {
     });
   };
 
+  // Safety check: if context is not available, show loading
+  if (!dashboardData && !isLoading && !isError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-3 text-slate-500">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <p>Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (isError) {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-red-100 p-8 text-center text-red-600">
@@ -391,35 +519,35 @@ const AdminDashboardPage = () => {
           <AlertCircle className="w-10 h-10" />
           <p className="text-lg font-semibold">Không thể tải dữ liệu tổng quan</p>
           <p className="text-sm text-red-500">Vui lòng kiểm tra kết nối và thử lại.</p>
-          <button onClick={() => refetch()} className="btn-primary px-5">
-            Thử lại
-          </button>
+          {refetch && (
+            <button
+              onClick={() => refetch()}
+              className="btn-primary px-5"
+            >
+              Thử lại
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-400 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-wide opacity-80">Tổng quan nhanh</p>
-            <h1 className="mt-1 text-2xl font-semibold md:text-3xl">
-              Xin chào, {dashboardData?.user?.name || 'Admin'}!
-            </h1>
-            <p className="mt-2 text-sm md:text-base opacity-90">
-              Theo dõi hiệu suất kinh doanh và chăm sóc khách hàng ngay trên thiết bị di động của bạn.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 rounded-2xl bg-white/20 px-4 py-3 backdrop-blur">
-            <Sparkles className="w-5 h-5" />
-            <div>
-              <p className="text-xs uppercase tracking-wider opacity-80">Cập nhật lần cuối</p>
-              <p className="text-sm font-semibold">{heroLastUpdated}</p>
-            </div>
-          </div>
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Tổng quan hoạt động</h1>
+          <p className="text-sm sm:text-base text-slate-500 mt-1">Theo dõi tình hình kinh doanh và hiệu suất đơn hàng gần đây.</p>
         </div>
+        {refetch && (
+          <button
+            onClick={() => refetch()}
+            className="btn-primary flex items-center justify-center space-x-2 self-start sm:self-auto w-full sm:w-auto"
+          >
+            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Làm mới dữ liệu</span>
+          </button>
+        )}
       </div>
 
       <section>
@@ -435,15 +563,15 @@ const AdminDashboardPage = () => {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 card-hover"
+                  className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6 card-hover"
                 >
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-500">{stat.name}</p>
-                      <p className="mt-2 text-2xl font-semibold text-slate-900">{stat.value}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm text-slate-500 truncate">{stat.name}</p>
+                      <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-semibold text-slate-900 truncate">{stat.value}</p>
                     </div>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
-                      <Icon className="w-6 h-6" />
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ml-3 ${stat.color}`}>
+                      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                   </div>
                 </motion.div>
@@ -453,6 +581,7 @@ const AdminDashboardPage = () => {
         )}
       </section>
 
+<<<<<<< HEAD
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {engagementHighlights.map((item, index) => {
           const Icon = item.icon;
@@ -676,6 +805,168 @@ const AdminDashboardPage = () => {
                 description="Khi khách hàng gửi feedback, bạn sẽ thấy thông tin tại đây."
               />
             )}
+=======
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+        <div className="xl:col-span-2 bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Doanh thu 7 ngày qua</h2>
+              <p className="text-xs sm:text-sm text-slate-500">Cập nhật tự động sau mỗi 30 giây</p>
+            </div>
+            <TrendingUp className="w-5 h-5 text-emerald-600 hidden sm:block" />
+          </div>
+
+          {isLoading ? (
+            <div className="h-48 sm:h-64 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-amber-600" />
+            </div>
+          ) : (
+            <div className="h-48 sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueChart} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    formatter={(value) => [currencyFormatter.format(value), 'Doanh thu']}
+                    labelStyle={{ color: '#0f172a', fontWeight: 600 }}
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '12px'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    dot={{ r: 4, strokeWidth: 2, fill: '#f59e0b' }}
+                    activeDot={{ r: 6, stroke: '#f97316', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-900 mb-3 sm:mb-4">Thông tin nhanh</h2>
+          <div className="space-y-3 sm:space-y-4 text-xs sm:text-sm">
+            <div className="flex items-center justify-between gap-3 min-w-0">
+              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Tài khoản</span>
+              <span className="font-medium text-slate-900 text-right flex-1 min-w-0 truncate" title={dashboardData?.user?.name || '---'}>
+                {dashboardData?.user?.name || '---'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 min-w-0">
+              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Vai trò</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 whitespace-nowrap ${roleBadgeClasses[dashboardData?.user?.role] || 'bg-slate-100 text-slate-700'}`}>
+                {roleLabels[dashboardData?.user?.role] || 'Chưa xác định'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 min-w-0">
+              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Đơn hàng trong ngày</span>
+              <span className="font-medium text-slate-900 text-right flex-shrink-0 whitespace-nowrap">
+                {numberFormatter.format(dashboardData?.stats?.orders_today || 0)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 min-w-0">
+              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Doanh thu hôm nay</span>
+              <span className="font-medium text-emerald-600 text-right flex-shrink-0 whitespace-nowrap">
+                {currencyFormatter.format(Number(dashboardData?.stats?.revenue_today || 0))}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Đơn hàng gần đây</h2>
+          <span className="text-xs sm:text-sm text-slate-500">Hiển thị 5 đơn hàng mới nhất</span>
+        </div>
+
+        {isLoading ? (
+          <OrdersSkeleton />
+        ) : recentOrders.length ? (
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="min-w-full inline-block align-middle">
+              {/* Desktop Table View */}
+              <table className="hidden md:table w-full">
+                <thead>
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
+                    <th className="py-3 px-4">Mã đơn hàng</th>
+                    <th className="py-3 px-4">Khách hàng</th>
+                    <th className="py-3 px-4">Tổng tiền</th>
+                    <th className="py-3 px-4">Trạng thái</th>
+                    <th className="py-3 px-4">Ngày tạo</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recentOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-4">
+                        <p className="font-semibold text-slate-900">{order.order_number}</p>
+                        <p className="text-xs text-slate-500">{order.payment_method}</p>
+                      </td>
+                      <td className="py-4 px-4">
+                        <p className="font-medium text-slate-900">{order.customer_name}</p>
+                        <p className="text-xs text-slate-500">{order.customer_email}</p>
+                      </td>
+                      <td className="py-4 px-4 font-semibold text-slate-900">
+                        {currencyFormatter.format(Number(order.total_amount || 0))}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          statusClasses[order.status] || 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {statusLabels[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-sm text-slate-500">
+                        {formatDate(order.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 px-4 sm:px-0">
+                {recentOrders.map((order) => (
+                  <div key={order.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{order.order_number}</p>
+                        <p className="text-xs text-slate-500 mt-1">{order.payment_method}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
+                        statusClasses[order.status] || 'bg-slate-100 text-slate-700'
+                      }`}>
+                        {statusLabels[order.status] || order.status}
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Khách hàng:</span>
+                        <span className="font-medium text-slate-900 truncate ml-2">{order.customer_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Tổng tiền:</span>
+                        <span className="font-semibold text-slate-900">{currencyFormatter.format(Number(order.total_amount || 0))}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Ngày tạo:</span>
+                        <span className="text-slate-600">{formatDate(order.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+>>>>>>> 1e93170 (fix backend and UI admin)
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">

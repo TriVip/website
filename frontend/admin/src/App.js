@@ -11,6 +11,7 @@ import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminFeedbackPage from './pages/AdminFeedbackPage';
 import AdminCustomersPage from './pages/AdminCustomersPage';
 import AdminBlogsPage from './pages/AdminBlogsPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -32,7 +33,14 @@ function App() {
             <Route path="/login" element={<AdminLoginPage />} />
 
             {/* Protected Admin Routes */}
-            <Route path="/" element={<AdminLayout />}>
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
               <Route path="dashboard" element={<AdminDashboardPage />} />
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />

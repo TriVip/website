@@ -32,12 +32,23 @@ api.interceptors.request.use(
   (config) => {
     // Add auth token if available
     const token = localStorage.getItem('adminToken');
+    console.log('🟢 [API Interceptor] Request:', {
+      url: config.url,
+      method: config.method,
+      hasToken: !!token,
+      tokenLength: token?.length,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : null
+    });
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🟢 [API Interceptor] Authorization header added');
+    } else {
+      console.warn('🟡 [API Interceptor] No token found in localStorage');
     }
     return config;
   },
   (error) => {
+    console.error('🔴 [API Interceptor] Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -45,26 +56,108 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    console.log('🟢 [API Interceptor] Response success:', {
+      url: response.config.url,
+      status: response.status,
+      statusText: response.statusText
+    });
     return response;
   },
   (error) => {
+    console.error('🔴 [API Interceptor] Response error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      currentPath: window.location.pathname
+    });
+
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      localStorage.removeItem('adminToken');
-      window.location.href = '/login';
+      const token = localStorage.getItem('adminToken');
+      console.warn('🟡 [API Interceptor] 401 Unauthorized detected:', {
+        hasToken: !!token,
+        currentPath: window.location.pathname,
+        isLoginPage: window.location.pathname.includes('/login')
+      });
+      
+      // Only redirect if we have a token (meaning it's invalid/expired)
+      // Don't redirect if we're already on login page
+      if (token && !window.location.pathname.includes('/login')) {
+        console.warn('🟡 [API Interceptor] Removing token and redirecting to login...');
+        localStorage.removeItem('adminToken');
+        // Use navigate instead of window.location to avoid full page reload
+        // But since we're in an interceptor, we need to use window.location
+        // Delay redirect to avoid race conditions
+        setTimeout(() => {
+          console.warn('🟡 [API Interceptor] Redirecting to /login now...');
+          window.location.href = '/login';
+        }, 100);
+      } else {
+        console.log('🟢 [API Interceptor] Not redirecting:', {
+          reason: !token ? 'No token found' : 'Already on login page'
+        });
+      }
     }
     return Promise.reject(error);
   }
 );
 
+// Helper function to format error messages
+const formatErrorMessage = (error) => {
+  if (error.response) {
+    // Server responded with error status
+    const { status, data } = error.response;
+    if (data?.error) {
+      return data.error;
+    }
+    if (status === 401) {
+      return 'Email hoặc mật khẩu không đúng';
+    }
+    if (status === 403) {
+      return 'Bạn không có quyền truy cập';
+    }
+    if (status === 404) {
+      return 'API endpoint không tồn tại';
+    }
+    if (status === 500) {
+      return 'Lỗi server. Vui lòng thử lại sau';
+    }
+    return `Lỗi ${status}: ${data?.message || error.message}`;
+  } else if (error.request) {
+    // Request was made but no response received
+    return 'Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng';
+  } else {
+    // Something else happened
+    return error.message || 'Đã xảy ra lỗi không xác định';
+  }
+};
+
 // Admin API
 export const adminLogin = async (credentials) => {
   try {
+    console.log('🔵 [adminLogin] Starting login request...');
     const response = await api.post('/admin/login', credentials);
+    console.log('🟢 [adminLogin] Login successful');
     return response.data;
   } catch (error) {
-    console.error('Error logging in:', error);
-    throw error;
+    const errorMessage = formatErrorMessage(error);
+    console.error('🔴 [adminLogin] Login failed:', {
+      message: errorMessage,
+      originalError: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      stack: error.stack
+    });
+    
+    // Create a new error with formatted message
+    const formattedError = new Error(errorMessage);
+    formattedError.originalError = error;
+    formattedError.status = error.response?.status;
+    formattedError.data = error.response?.data;
+    throw formattedError;
   }
 };
 
@@ -130,11 +223,50 @@ export const deleteProduct = async (id) => {
 
 export const fetchDashboardData = async () => {
   try {
+    console.log('🔵 [fetchDashboardData] Starting API call...');
+    const token = localStorage.getItem('adminToken');
+    console.log('🔵 [fetchDashboardData] Token check:', { 
+      hasToken: !!token, 
+      tokenLength: token?.length 
+    });
+    
+    if (!token) {
+      const error = new Error('Không tìm thấy token xác thực. Vui lòng đăng nhập lại.');
+      error.status = 401;
+      error.isAuthError = true;
+      throw error;
+    }
+    
     const response = await api.get('/admin/dashboard');
+    console.log('🟢 [fetchDashboardData] API call successful:', {
+      status: response.status,
+      hasData: !!response.data,
+      dataKeys: response.data ? Object.keys(response.data) : []
+    });
     return response.data;
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
-    throw error;
+    const errorMessage = formatErrorMessage(error);
+    console.error('🔴 [fetchDashboardData] Error:', {
+      message: errorMessage,
+      originalMessage: error.message,
+      status: error.response?.status || error.status,
+      data: error.response?.data,
+      isAuthError: error.isAuthError || error.response?.status === 401,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      },
+      stack: error.stack
+    });
+    
+    // Create a new error with formatted message
+    const formattedError = new Error(errorMessage);
+    formattedError.originalError = error;
+    formattedError.status = error.response?.status || error.status;
+    formattedError.data = error.response?.data;
+    formattedError.isAuthError = error.isAuthError || error.response?.status === 401;
+    throw formattedError;
   }
 };
 

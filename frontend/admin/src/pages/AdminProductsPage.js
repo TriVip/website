@@ -45,13 +45,18 @@ const AdminProductsPage = () => {
     limit: 10,
     search: searchTerm
   }), {
-    keepPreviousData: true
+    keepPreviousData: true,
+    staleTime: 0, // Always refetch to ensure fresh data
+    cacheTime: 5 * 60 * 1000 // Cache for 5 minutes
   });
 
-  const products = useMemo(
-    () => productsData?.products || [],
-    [productsData?.products]
-  );
+  // Get products - backend now filters out null IDs, but we add extra safety check
+  const products = (productsData?.products || []).filter(p => {
+    if (!p) return false;
+    // Ensure ID is valid - SQLite returns numbers, so check for null/undefined
+    const id = p.id;
+    return id != null && id !== 'null' && id !== 'undefined';
+  });
   const pagination = productsData?.pagination || {};
   const pageSize = pagination.limit || 10;
   const currencyFormatter = useMemo(
@@ -75,13 +80,16 @@ const AdminProductsPage = () => {
   const toItem = Math.min(currentPage * pageSize, totalCount);
 
   const createMutation = useMutation(createProduct, {
-    onSuccess: () => {
-      queryClient.invalidateQueries('admin-products');
+    onSuccess: async (data) => {
+      // Invalidate and wait for refetch to ensure data is updated
+      await queryClient.invalidateQueries('admin-products');
       toast.success('Sản phẩm đã được tạo thành công!');
       setShowAddForm(false);
     },
-    onError: () => {
-      toast.error('Có lỗi xảy ra khi tạo sản phẩm');
+    onError: (error) => {
+      console.error('Error creating product:', error);
+      const errorMessage = error?.response?.data?.error || error?.message || 'Có lỗi xảy ra khi tạo sản phẩm';
+      toast.error(errorMessage);
     }
   });
 
@@ -103,13 +111,27 @@ const AdminProductsPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries('admin-products');
       toast.success('Sản phẩm đã được xóa thành công!');
+      
+      // If current page becomes empty after deletion, go to previous page
+      if (filteredProducts.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => Math.max(prev - 1, 1));
+      }
     },
-    onError: () => {
-      toast.error('Có lỗi xảy ra khi xóa sản phẩm');
+    onError: (error) => {
+      console.error('Error deleting product:', error);
+      const errorMessage = error?.response?.data?.error || error?.message || 'Có lỗi xảy ra khi xóa sản phẩm';
+      toast.error(errorMessage);
     }
   });
 
   const handleDelete = (id) => {
+    // Validate ID before deletion
+    if (!id || id === 'null' || id === 'undefined') {
+      console.error('Invalid product ID:', id);
+      toast.error('Không thể xóa sản phẩm: ID không hợp lệ');
+      return;
+    }
+    
     if (window.confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) {
       deleteMutation.mutate(id);
     }
@@ -138,48 +160,48 @@ const AdminProductsPage = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Quản lý sản phẩm</h1>
-          <p className="text-slate-500">Thêm mới, chỉnh sửa và kiểm soát tồn kho sản phẩm một cách nhanh chóng.</p>
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Quản lý sản phẩm</h1>
+          <p className="text-sm sm:text-base text-slate-500 mt-1">Thêm mới, chỉnh sửa và kiểm soát tồn kho sản phẩm một cách nhanh chóng.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={() => refetch()}
-            className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+            className="inline-flex items-center justify-center space-x-2 px-4 py-2 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors text-sm"
           >
             <Loader2 className={`w-4 h-4 ${isLoading ? 'animate-spin text-amber-600' : 'text-slate-500'}`} />
             <span>Làm mới</span>
           </button>
           <button
             onClick={() => setShowAddForm(true)}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex items-center justify-center space-x-2 text-sm"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>Thêm sản phẩm</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 sm:w-5 sm:h-5" />
             <input
               type="text"
               placeholder="Tìm kiếm theo tên, thương hiệu hoặc danh mục..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="w-full pl-9 sm:pl-10 pr-4 py-2 text-sm sm:text-base border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0">
             {STATUS_TABS.map((tab) => (
               <button
                 key={tab.value}
                 onClick={() => setStatusFilter(tab.value)}
-                className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                className={`px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 ${
                   statusFilter === tab.value
                     ? 'border-amber-500 bg-amber-50 text-amber-700'
                     : 'border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -190,7 +212,7 @@ const AdminProductsPage = () => {
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-500">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs sm:text-sm text-slate-500">
           <div className="bg-slate-50 rounded-xl p-4 flex items-center space-x-3">
             <Sparkles className="w-5 h-5 text-amber-500" />
             <div>
@@ -215,48 +237,112 @@ const AdminProductsPage = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+      <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm">
         {isLoading ? (
           <ProductsTableSkeleton />
         ) : hasResults ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="py-4 px-6">Sản phẩm</th>
-                  <th className="py-4 px-6">Thương hiệu</th>
-                  <th className="py-4 px-6">Giá</th>
-                  <th className="py-4 px-6">Tồn kho</th>
-                  <th className="py-4 px-6">Trạng thái</th>
-                  <th className="py-4 px-6">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={product.image_urls?.[0] || '/images/placeholder.jpg'}
-                          alt={product.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        <div>
-                          <p className="font-semibold text-slate-900">{product.name}</p>
-                          <p className="text-xs text-slate-500">{product.volume_ml}ml • {product.category}</p>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <div className="min-w-full inline-block align-middle">
+              {/* Desktop Table View */}
+              <table className="hidden md:table w-full">
+                <thead className="bg-slate-50">
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="py-4 px-6">Sản phẩm</th>
+                    <th className="py-4 px-6">Thương hiệu</th>
+                    <th className="py-4 px-6">Giá</th>
+                    <th className="py-4 px-6">Tồn kho</th>
+                    <th className="py-4 px-6">Trạng thái</th>
+                    <th className="py-4 px-6">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredProducts.map((product, index) => (
+                    <tr key={product.id || `product-${index}`} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={product.image_urls?.[0] || '/images/placeholder.jpg'}
+                            alt={product.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          <div>
+                            <p className="font-semibold text-slate-900">{product.name}</p>
+                            <p className="text-xs text-slate-500">{product.volume_ml}ml • {product.category}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 text-slate-600">{product.brand}</td>
+                      <td className="py-4 px-6 font-semibold text-slate-900">
+                        {currencyFormatter.format(Number(product.price || 0))}
+                      </td>
+                      <td className="py-4 px-6 text-slate-600">{product.stock_quantity}</td>
+                      <td className="py-4 px-6">
+                        <StatusPill isActive={product.is_active} isFeatured={product.is_featured} />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleToggleVisibility(product)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              product.is_active
+                                ? 'text-emerald-600 hover:bg-emerald-50'
+                                : 'text-rose-600 hover:bg-rose-50'
+                            }`}
+                            title={product.is_active ? 'Ẩn sản phẩm' : 'Hiển thị sản phẩm'}
+                          >
+                            {product.is_active ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => setEditingProduct(product)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3 p-4">
+                {filteredProducts.map((product, index) => (
+                  <div key={product.id || `product-${index}`} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <div className="flex items-start gap-3 mb-3">
+                      <img
+                        src={product.image_urls?.[0] || '/images/placeholder.jpg'}
+                        alt={product.name}
+                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 truncate">{product.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">{product.brand} • {product.volume_ml}ml</p>
+                        <div className="mt-2">
+                          <StatusPill isActive={product.is_active} isFeatured={product.is_featured} />
                         </div>
                       </div>
-                    </td>
-                    <td className="py-4 px-6 text-slate-600">{product.brand}</td>
-                    <td className="py-4 px-6 font-semibold text-slate-900">
-                      {currencyFormatter.format(Number(product.price || 0))}
-                    </td>
-                    <td className="py-4 px-6 text-slate-600">{product.stock_quantity}</td>
-                    <td className="py-4 px-6">
-                      <StatusPill isActive={product.is_active} isFeatured={product.is_featured} />
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
+                    </div>
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                      <div className="space-y-1">
+                        <div className="text-sm">
+                          <span className="text-slate-500">Giá: </span>
+                          <span className="font-semibold text-slate-900">{currencyFormatter.format(Number(product.price || 0))}</span>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-slate-500">Tồn kho: </span>
+                          <span className="font-medium text-slate-900">{product.stock_quantity}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
                         <button
                           onClick={() => handleToggleVisibility(product)}
                           className={`p-2 rounded-lg transition-colors ${
@@ -277,17 +363,18 @@ const AdminProductsPage = () => {
                         </button>
                         <button
                           onClick={() => handleDelete(product.id)}
-                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Xóa"
+                          disabled={!product.id || product.id === 'null' || product.id === 'undefined'}
+                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={product.id ? "Xóa" : "Không thể xóa - ID không hợp lệ"}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         ) : (
           <EmptyState
@@ -297,25 +384,25 @@ const AdminProductsPage = () => {
         )}
 
         {hasResults && (
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-4 border-t border-slate-100">
-            <div className="text-sm text-slate-500">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-4 border-t border-slate-100">
+            <div className="text-xs sm:text-sm text-slate-500 text-center sm:text-left">
               Hiển thị {fromItem}-{toItem} trên tổng số {totalCount} sản phẩm
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-2 border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
+                className="px-3 py-2 text-xs sm:text-sm border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
               >
                 Trước
               </button>
-              <span className="text-sm text-slate-600">
+              <span className="text-xs sm:text-sm text-slate-600 px-2">
                 Trang {currentPage} / {pagination.total_pages || 1}
               </span>
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, pagination.total_pages || 1))}
                 disabled={currentPage === (pagination.total_pages || 1)}
-                className="px-3 py-2 border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100"
+                className="px-3 py-2 text-xs sm:text-sm border border-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
               >
                 Sau
               </button>
@@ -412,11 +499,11 @@ const ProductForm = ({ product, onClose, onSubmit, isLoading }) => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen px-4">
+      <div className="flex items-start sm:items-center justify-center min-h-screen px-2 sm:px-4 py-4 sm:py-0">
         <div className="fixed inset-0 bg-slate-900/50" onClick={onClose} aria-hidden="true" />
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between p-6 border-b border-slate-100">
-            <h2 className="text-xl font-semibold text-slate-900">
+        <div className="relative bg-white rounded-xl sm:rounded-2xl shadow-xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
               {product ? 'Chỉnh sửa sản phẩm' : 'Thêm sản phẩm mới'}
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg" aria-label="Đóng">
@@ -424,7 +511,7 @@ const ProductForm = ({ product, onClose, onSubmit, isLoading }) => {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Tên sản phẩm *</label>
@@ -504,7 +591,7 @@ const ProductForm = ({ product, onClose, onSubmit, isLoading }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <label className="flex items-center">
                 <input
                   type="checkbox"
@@ -525,14 +612,14 @@ const ProductForm = ({ product, onClose, onSubmit, isLoading }) => {
               </label>
             </div>
 
-            <div className="flex justify-end gap-3">
-              <button type="button" onClick={onClose} className="btn-secondary">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-slate-100">
+              <button type="button" onClick={onClose} className="btn-secondary w-full sm:w-auto">
                 Hủy
               </button>
               <button
                 type="submit"
                 disabled={isLoading}
-                className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 w-full sm:w-auto"
               >
                 {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 <span>{isLoading ? 'Đang lưu...' : 'Lưu sản phẩm'}</span>
