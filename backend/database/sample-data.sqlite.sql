@@ -18,6 +18,21 @@ INSERT INTO products (name, brand, description, price, image_urls, stock_quantit
 
 ('Desert Bloom', 'Rare Parfume', 'Exotic and mysterious, inspired by desert flowers.', 329.99, '["/images/desert-bloom-1.jpg", "/images/desert-bloom-2.jpg"]', 14, '{"top_notes": ["Cumin", "Coriander"], "middle_notes": ["Rose", "Jasmine", "Orange Blossom"], "base_notes": ["Amber", "Sandalwood", "Musk"]}', 100, 'perfume', 0);
 
+-- Insert sample orders
+INSERT INTO orders (order_number, customer_name, customer_email, customer_phone, shipping_address, total_amount, status, payment_method, notes)
+VALUES
+('RP20240101', 'Nguyễn Văn An', 'an.nguyen@example.com', '0901000111', '12 Nguyễn Huệ, Quận 1, TP.HCM', 549.98, 'paid', 'bank_transfer', 'Khách yêu cầu giao buổi sáng'),
+('RP20240115', 'Trần Thị Bình', 'binh.tran@example.com', '0902000222', '45 Lê Lợi, Quận 3, TP.HCM', 329.99, 'delivered', 'qr_code', 'Đã giao thành công'),
+('RP20240202', 'Lê Minh Chi', 'chi.le@example.com', '0903000333', '89 Võ Văn Tần, Quận 3, TP.HCM', 599.98, 'pending', 'cod', 'Khách muốn kiểm tra hàng khi nhận');
+
+-- Insert sample order items
+INSERT INTO order_items (order_id, product_id, quantity, price_at_purchase) VALUES
+(1, 1, 1, 299.99),
+(1, 2, 1, 249.99),
+(2, 8, 1, 329.99),
+(3, 6, 1, 399.99),
+(3, 5, 1, 199.99);
+
 -- Insert sample blog posts
 INSERT INTO blog_posts (title, slug, content, excerpt, featured_image, author, is_published, published_at) VALUES
 ('The Art of Choosing Your Signature Scent', 'art-of-choosing-signature-scent', 
@@ -56,6 +71,21 @@ During the Middle Ages, perfume-making knowledge was preserved and refined by Is
 The modern perfume industry began in France in the 19th century, with the rise of luxury brands and the development of synthetic fragrance ingredients. Today, perfume is a multi-billion dollar industry that combines ancient traditions with cutting-edge technology.', 
 'Explore the fascinating journey of perfume from ancient civilizations to modern luxury brands.', 
 '/images/blog-perfume-history.jpg', 'Rare Parfume Team', 1, CURRENT_TIMESTAMP);
+
+
+-- Insert sample customer feedback
+INSERT INTO customer_feedback (customer_name, customer_email, customer_phone, message, rating, status, admin_notes)
+VALUES
+('Nguyễn Văn An', 'an.nguyen@example.com', '0901000111', 'Mùi hương rất tuyệt, nhưng thời gian giao hàng hơi lâu.', 4, 'in_progress', 'Đã liên hệ xin lỗi khách hàng'),
+('Trần Thị Bình', 'binh.tran@example.com', '0902000222', 'Dịch vụ tuyệt vời và đóng gói rất cẩn thận.', 5, 'resolved', 'Đã gửi voucher tri ân'),
+('Phạm Quốc Dũng', 'dung.pham@example.com', '0904000444', 'Tôi muốn được tư vấn thêm về sản phẩm mới.', NULL, 'new', NULL);
+
+-- Insert sample customer profiles
+INSERT INTO customer_profiles (email, name, phone, note, tags, vip_status, last_contacted_at)
+VALUES
+('an.nguyen@example.com', 'Nguyễn Văn An', '0901000111', 'Khách hàng yêu thích dòng hương gỗ.', '["loyal", "prefers-wood"]', 'gold', datetime('now', '-10 days')),
+('binh.tran@example.com', 'Trần Thị Bình', '0902000222', 'Quan tâm đến bộ sưu tập giới hạn.', '["premium"]', 'platinum', datetime('now', '-5 days')),
+('chi.le@example.com', 'Lê Minh Chi', '0903000333', 'Ưu tiên giao hàng cuối tuần.', '["new"]', 'standard', NULL);
 
 -- Insert admin user (password: admin123)
 INSERT INTO admin_users (email, password_hash, name, role) VALUES

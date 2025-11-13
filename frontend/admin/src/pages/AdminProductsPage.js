@@ -48,7 +48,10 @@ const AdminProductsPage = () => {
     keepPreviousData: true
   });
 
-  const products = productsData?.products || [];
+  const products = useMemo(
+    () => productsData?.products || [],
+    [productsData?.products]
+  );
   const pagination = productsData?.pagination || {};
   const pageSize = pagination.limit || 10;
   const currencyFormatter = useMemo(

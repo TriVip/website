@@ -1,8 +1,26 @@
 import axios from 'axios';
 
+const getBaseURL = () => {
+  const envUrl = process.env.REACT_APP_API_URL?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/$/, '');
+  }
+
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(hostname);
+
+    if (!isLocalhost) {
+      return `${origin.replace(/\/$/, '')}/api`;
+    }
+  }
+
+  return '/api';
+};
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: '/api', // Use relative URL since we have proxy configured
+  baseURL: getBaseURL(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -126,6 +144,106 @@ export const getCurrentUser = async () => {
     return response.data;
   } catch (error) {
     console.error('Error fetching current user:', error);
+    throw error;
+  }
+};
+
+export const fetchAdminFeedbacks = async (params = {}) => {
+  try {
+    const response = await api.get('/admin/feedbacks', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin feedbacks:', error);
+    throw error;
+  }
+};
+
+export const createFeedbackNote = async (data) => {
+  try {
+    const response = await api.post('/admin/feedbacks', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating admin feedback:', error);
+    throw error;
+  }
+};
+
+export const updateFeedback = async (id, data) => {
+  try {
+    const response = await api.patch(`/admin/feedbacks/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating admin feedback:', error);
+    throw error;
+  }
+};
+
+export const fetchAdminCustomers = async (params = {}) => {
+  try {
+    const response = await api.get('/admin/customers', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin customers:', error);
+    throw error;
+  }
+};
+
+export const fetchCustomerDetail = async (email) => {
+  try {
+    const response = await api.get(`/admin/customers/${encodeURIComponent(email)}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching customer detail:', error);
+    throw error;
+  }
+};
+
+export const updateCustomerProfile = async (email, data) => {
+  try {
+    const response = await api.put(`/admin/customers/${encodeURIComponent(email)}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating customer profile:', error);
+    throw error;
+  }
+};
+
+export const fetchAdminBlogs = async (params = {}) => {
+  try {
+    const response = await api.get('/admin/blogs', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching admin blogs:', error);
+    throw error;
+  }
+};
+
+export const createBlogPost = async (data) => {
+  try {
+    const response = await api.post('/admin/blogs', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating blog post:', error);
+    throw error;
+  }
+};
+
+export const updateBlogPost = async (id, data) => {
+  try {
+    const response = await api.put(`/admin/blogs/${id}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating blog post:', error);
+    throw error;
+  }
+};
+
+export const deleteBlogPost = async (id) => {
+  try {
+    const response = await api.delete(`/admin/blogs/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting blog post:', error);
     throw error;
   }
 };
