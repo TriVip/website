@@ -131,6 +131,16 @@ const parseFirstImage = (imageJson) => {
   }
 };
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error('JWT secret is not configured');
+  }
+
+  return secret;
+};
+
 const fetchOrderItems = async (orderId) => {
   const rows = await dbAll(
     `SELECT oi.*, p.name as product_name, p.image_urls
@@ -212,6 +222,11 @@ const verifyAdminToken = async (req, res, next) => {
     req.admin = admin;
     next();
   } catch (error) {
+    if (error.message === 'JWT secret is not configured') {
+      console.error('JWT secret is not configured');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -247,6 +262,8 @@ router.post('/login', [
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const jwtSecret = getJwtSecret();
+
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
       jwtSecret,
@@ -264,6 +281,11 @@ router.post('/login', [
     });
 
   } catch (error) {
+    if (error.message === 'JWT secret is not configured') {
+      console.error('JWT secret is not configured');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     console.error('❌ Error during admin login:', error.message);
     res.status(500).json({ error: 'Login failed' });
   }
@@ -510,6 +532,7 @@ router.put('/products/:id',
   body('brand').optional().trim().isLength({ min: 2, max: 100 }),
   body('description').optional().trim(),
   body('price').optional().isFloat({ min: 0 }),
+  body('image_urls').optional().isArray(),
   body('stock_quantity').optional().isInt({ min: 0 }),
   body('volume_ml').optional().isInt({ min: 1 }),
   body('category').optional().isString().trim(),
@@ -527,30 +550,36 @@ async (req, res) => {
     const { id } = req.params;
     const updateFields = req.body;
 
-    // Build dynamic query
+    const allowedFieldTransformers = {
+      name: (value) => value,
+      brand: (value) => value,
+      description: (value) => value,
+      price: (value) => value,
+      image_urls: (value) => JSON.stringify(value ?? []),
+      stock_quantity: (value) => value,
+      scent_notes: (value) => JSON.stringify(value ?? {}),
+      volume_ml: (value) => value,
+      category: (value) => value,
+      is_featured: (value) => (value ? 1 : 0),
+      is_active: (value) => (value ? 1 : 0)
+    };
+
     const setClause = [];
     const values = [];
 
-    Object.entries(updateFields).forEach(([key, value]) => {
-      if (value === undefined) {
+    Object.entries(allowedFieldTransformers).forEach(([field, transform]) => {
+      if (!Object.prototype.hasOwnProperty.call(updateFields, field)) {
         return;
       }
 
-      let processedValue = value;
+      const rawValue = updateFields[field];
 
-      if (key === 'scent_notes') {
-        processedValue = JSON.stringify(value);
+      if (rawValue === undefined) {
+        return;
       }
 
-      if (key === 'image_urls') {
-        processedValue = JSON.stringify(value);
-      }
-
-      if (key === 'is_featured' || key === 'is_active') {
-        processedValue = value ? 1 : 0;
-      }
-
-      setClause.push(`${key} = ?`);
+      const processedValue = transform(rawValue);
+      setClause.push(`${field} = ?`);
       values.push(processedValue);
     });
 
