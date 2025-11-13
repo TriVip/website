@@ -33,8 +33,13 @@ async function debugLogin() {
 
     // Test JWT token creation
     console.log('🎫 Testing JWT token creation...');
-    const secret = process.env.JWT_SECRET || 'rare_parfume_jwt_secret_2024';
-    console.log('JWT Secret:', secret ? 'Set' : 'Not set');
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error('JWT secret is not configured');
+    }
+
+    console.log('JWT Secret: Set');
 
     const token = jwt.sign(
       { userId: admin.id, email: admin.email },
