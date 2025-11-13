@@ -1,5 +1,5 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
+const { body, validationResult, query } = require('express-validator');
 const { dbAll, dbGet, runInTransaction } = require('../config/database');
 
 const router = express.Router();
@@ -178,8 +178,15 @@ router.get('/:orderNumber', async (req, res) => {
 });
 
 // GET /api/orders - Get orders by email (for customer lookup)
-router.get('/', async (req, res) => {
+router.get('/', [
+  query('email').isEmail().withMessage('Valid email is required').normalizeEmail()
+], async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email } = req.query;
 
     if (!email) {
