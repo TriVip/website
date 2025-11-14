@@ -41,7 +41,20 @@ const defaultOrigins = [
 
 const envOrigins = parseList(process.env.ALLOWED_ORIGINS);
 const allowedOrigins = Array.from(new Set([...envOrigins, ...defaultOrigins]));
-const allowAllInDev = !envOrigins.length && !defaultOrigins.length && !isProduction;
+
+// In development, allow all origins if ALLOWED_ORIGINS is not explicitly set
+// This makes development easier while maintaining security in production
+// If ALLOWED_ORIGINS is set (even if empty), respect it. Otherwise, allow all in dev.
+const hasExplicitOrigins = process.env.ALLOWED_ORIGINS !== undefined;
+const allowAllInDev = !isProduction && !hasExplicitOrigins;
+
+if (!isProduction) {
+  console.log('🔧 CORS Configuration:');
+  console.log(`   Environment: ${nodeEnv}`);
+  console.log(`   Allowed origins: ${allowedOrigins.length > 0 ? allowedOrigins.join(', ') : 'None configured'}`);
+  console.log(`   Has explicit ALLOWED_ORIGINS: ${hasExplicitOrigins}`);
+  console.log(`   Allow all in dev: ${allowAllInDev}`);
+}
 
 module.exports = {
   allowedOrigins,

@@ -1387,9 +1387,19 @@ router.delete('/blogs/:id', requireRole('admin'), async (req, res) => {
 });
 
 // GET /api/admin/dashboard - Get dashboard statistics
-router.get('/dashboard', requireRole('admin'), async (req, res) => {
+router.get('/dashboard', requireRole('admin', 'sale'), async (req, res) => {
   try {
     const adminUser = req.admin;
+
+    // Helper function to safely execute queries
+    const safeQuery = async (queryFn, fallback = null) => {
+      try {
+        return await queryFn();
+      } catch (error) {
+        console.warn('Query failed, using fallback:', error.message);
+        return fallback;
+      }
+    };
 
     const [
       totalProducts,
@@ -1401,12 +1411,12 @@ router.get('/dashboard', requireRole('admin'), async (req, res) => {
       vipCountRow,
       recentFeedbackRows
     ] = await Promise.all([
-      dbGet('SELECT COUNT(*) as count FROM products WHERE is_active = 1'),
-      dbGet('SELECT COUNT(*) as count FROM orders'),
-      dbGet("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled'"),
-      dbAll('SELECT status, COUNT(*) as count FROM customer_feedback GROUP BY status'),
-      dbAll('SELECT is_published, COUNT(*) as count FROM blog_posts GROUP BY is_published'),
-      dbAll(
+      safeQuery(() => dbGet('SELECT COUNT(*) as count FROM products WHERE is_active = 1'), { count: 0 }),
+      safeQuery(() => dbGet('SELECT COUNT(*) as count FROM orders'), { count: 0 }),
+      safeQuery(() => dbGet("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled'"), { total: 0 }),
+      safeQuery(() => dbAll('SELECT status, COUNT(*) as count FROM customer_feedback GROUP BY status'), []),
+      safeQuery(() => dbAll('SELECT is_published, COUNT(*) as count FROM blog_posts GROUP BY is_published'), []),
+      safeQuery(() => dbAll(
         `SELECT
            LOWER(customer_email) AS email_key,
            MAX(customer_name) AS customer_name,
@@ -1417,34 +1427,43 @@ router.get('/dashboard', requireRole('admin'), async (req, res) => {
            MAX(created_at) AS last_order_at
          FROM orders
          GROUP BY LOWER(customer_email)`
-      ),
-      dbGet("SELECT COUNT(*) as count FROM customer_profiles WHERE vip_status != 'standard'"),
-      dbAll('SELECT * FROM customer_feedback ORDER BY created_at DESC LIMIT 4')
+      ), []),
+      safeQuery(() => dbGet("SELECT COUNT(*) as count FROM customer_profiles WHERE vip_status != 'standard'"), { count: 0 }),
+      safeQuery(() => dbAll('SELECT * FROM customer_feedback ORDER BY created_at DESC LIMIT 4'), [])
     ]);
 
-    const recentOrderRows = await dbAll(
-      'SELECT * FROM orders ORDER BY created_at DESC LIMIT 5'
+    const recentOrderRows = await safeQuery(
+      () => dbAll('SELECT * FROM orders ORDER BY created_at DESC LIMIT 5'),
+      []
     );
 
     const recentOrders = await Promise.all(
       recentOrderRows.map(async (order) => {
-        const items = await dbAll(
-          `SELECT oi.*, p.name as product_name, p.image_urls
-           FROM order_items oi
-           LEFT JOIN products p ON oi.product_id = p.id
-           WHERE oi.order_id = ?`,
-          [order.id]
-        );
+        try {
+          const items = await dbAll(
+            `SELECT oi.*, p.name as product_name, p.image_urls
+             FROM order_items oi
+             LEFT JOIN products p ON oi.product_id = p.id
+             WHERE oi.order_id = ?`,
+            [order.id]
+          );
 
-        return {
-          ...order,
-          items: items.map((item) => ({
-            product_name: item.product_name,
-            quantity: item.quantity,
-            price_at_purchase: item.price_at_purchase,
-            product_image: parseFirstImage(item.image_urls)
-          }))
-        };
+          return {
+            ...order,
+            items: items.map((item) => ({
+              product_name: item.product_name,
+              quantity: item.quantity,
+              price_at_purchase: item.price_at_purchase,
+              product_image: parseFirstImage(item.image_urls)
+            }))
+          };
+        } catch (error) {
+          console.warn(`Error fetching items for order ${order.id}:`, error.message);
+          return {
+            ...order,
+            items: []
+          };
+        }
       })
     );
 
@@ -1456,8 +1475,10 @@ router.get('/dashboard', requireRole('admin'), async (req, res) => {
       { total: 0 }
     );
 
-    feedbackCounts.forEach((row) => {
-      if (feedbackSummary[row.status] !== undefined) {
+    // Ensure feedbackCounts is an array
+    const safeFeedbackCounts = Array.isArray(feedbackCounts) ? feedbackCounts : [];
+    safeFeedbackCounts.forEach((row) => {
+      if (row && feedbackSummary[row.status] !== undefined) {
         const count = Number(row.count || 0);
         feedbackSummary[row.status] = count;
       }
@@ -1471,19 +1492,26 @@ router.get('/dashboard', requireRole('admin'), async (req, res) => {
       drafts: 0
     };
 
-    blogCounts.forEach((row) => {
-      const count = Number(row.count || 0);
-      blogSummary.total += count;
-      if (row.is_published) {
-        blogSummary.published = count;
-      } else {
-        blogSummary.drafts = count;
+    // Ensure blogCounts is an array
+    const safeBlogCounts = Array.isArray(blogCounts) ? blogCounts : [];
+    safeBlogCounts.forEach((row) => {
+      if (row) {
+        const count = Number(row.count || 0);
+        blogSummary.total += count;
+        if (row.is_published) {
+          blogSummary.published = count;
+        } else {
+          blogSummary.drafts = count;
+        }
       }
     });
 
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    const customerSummary = customerAggregates.reduce(
+    // Ensure customerAggregates is an array
+    const safeCustomerAggregates = Array.isArray(customerAggregates) ? customerAggregates : [];
+    const customerSummary = safeCustomerAggregates.reduce(
       (acc, row) => {
+        if (!row) return acc;
         const totalOrders = Number(row.total_orders || 0);
         const totalSpent = Number(row.total_spent || 0);
         const lastOrderTime = row.last_order_at ? new Date(row.last_order_at).getTime() : null;
@@ -1513,13 +1541,16 @@ router.get('/dashboard', requireRole('admin'), async (req, res) => {
 
     customerSummary.vip_customers = Number(vipCountRow?.count || 0);
 
-    const topCustomers = customerAggregates
-      .filter((row) => row.customer_email || row.email_key)
+    const topCustomers = safeCustomerAggregates
+      .filter((row) => row && (row.customer_email || row.email_key))
       .sort((a, b) => Number(b.total_spent || 0) - Number(a.total_spent || 0))
       .slice(0, 5)
-      .map((row) => mapCustomerRecord(row, { email: row.customer_email || row.email_key }));
+      .map((row) => mapCustomerRecord(row, { email: row.customer_email || row.email_key }))
+      .filter(Boolean); // Remove any null results
 
-    const recentFeedbacks = recentFeedbackRows.map((row) => ({
+    // Ensure recentFeedbackRows is an array
+    const safeRecentFeedbackRows = Array.isArray(recentFeedbackRows) ? recentFeedbackRows : [];
+    const recentFeedbacks = safeRecentFeedbackRows.map((row) => ({
       ...row,
       rating: row.rating === null || row.rating === undefined ? null : Number(row.rating)
     }));

@@ -25,19 +25,19 @@ const ProductCard = ({ product }) => {
   const priceValue = Number(product.price ?? 0);
   const formattedPrice = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'VND'
   }).format(Number.isFinite(priceValue) ? priceValue : 0);
 
   return (
     <motion.div
       whileHover={{ y: -5 }}
       transition={{ duration: 0.3 }}
-      className="group"
+      className="group h-full"
     >
-      <Link to={`/products/${product.id}`} className="block">
-        <div className="card overflow-hidden border border-gray-100 hover:border-amber-200">
+      <Link to={`/products/${product.id}`} className="block h-full">
+        <div className="card overflow-hidden border border-[#555555] hover:border-[#d4af37] h-full flex flex-col min-h-0">
           {/* Product Image */}
-          <div className="relative aspect-square overflow-hidden bg-gray-100">
+          <div className="relative aspect-square overflow-hidden bg-[#333333]">
             <img
               src={product.image_urls?.[0] || '/images/placeholder.jpg'}
               alt={product.name}
@@ -50,34 +50,34 @@ const ProductCard = ({ product }) => {
               <div className="flex space-x-2">
                 <button
                   onClick={handleAddToCart}
-                  className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
+                  className="p-1.5 sm:p-2 bg-[#333333] rounded-full shadow-lg hover:bg-[#444444] transition-colors duration-300 border border-[#555555]"
                   title="Thêm vào giỏ hàng"
                   aria-label="Thêm vào giỏ hàng"
                 >
-                  <ShoppingCart className="w-5 h-5 text-gray-700" />
+                  <ShoppingCart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#d4af37]" />
                 </button>
                 <button
                   onClick={handleQuickView}
-                  className="p-2 bg-white rounded-full shadow-lg hover:bg-amber-50 transition-colors duration-300"
+                  className="p-1.5 sm:p-2 bg-[#333333] rounded-full shadow-lg hover:bg-[#444444] transition-colors duration-300 border border-[#555555]"
                   title="Xem nhanh"
                   aria-label="Xem nhanh"
                 >
-                  <Eye className="w-5 h-5 text-gray-700" />
+                  <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#d4af37]" />
                 </button>
                 <button
-                  className="p-2 bg-white rounded-full shadow-lg hover:bg-red-50 transition-colors duration-300"
+                  className="p-1.5 sm:p-2 bg-[#333333] rounded-full shadow-lg hover:bg-[#444444] transition-colors duration-300 border border-[#555555]"
                   title="Yêu thích"
                   aria-label="Thêm vào danh sách yêu thích"
                 >
-                  <Heart className="w-5 h-5 text-gray-700 hover:text-red-500" />
+                  <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#d4af37] hover:text-red-500" />
                 </button>
               </div>
             </div>
 
             {/* Featured Badge */}
             {product.is_featured && (
-              <div className="absolute top-3 left-3">
-                <span className="bg-amber-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+              <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2">
+                <span className="bg-[#d4af37] text-[#222222] text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full">
                   Nổi bật
                 </span>
               </div>
@@ -85,8 +85,8 @@ const ProductCard = ({ product }) => {
 
             {/* Stock Badge */}
             {product.stock_quantity === 0 && (
-              <div className="absolute top-3 right-3">
-                <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+              <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2">
+                <span className="bg-red-500 text-white text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full">
                   Hết hàng
                 </span>
               </div>
@@ -94,36 +94,20 @@ const ProductCard = ({ product }) => {
           </div>
 
           {/* Product Info */}
-          <div className="p-4 space-y-2">
+          <div className="p-3 sm:p-4 flex-1 flex flex-col min-h-0">
             <div className="mb-1">
-              <span className="text-xs text-amber-600 font-medium">{product.brand}</span>
+              <span className="text-xs text-[#d4af37] font-medium">{product.brand}</span>
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1 line-clamp-2 group-hover:text-amber-600 transition-colors duration-300">
+            <h3 className="text-xs sm:text-sm font-semibold text-[#ffffff] mb-2 line-clamp-2 group-hover:text-[#d4af37] transition-colors duration-300 flex-shrink-0 min-h-[2.5rem] sm:min-h-[3rem]">
               {product.name}
             </h3>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-1">
-                <span className="text-lg font-bold text-gray-900">
-                  {formattedPrice}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {product.volume_ml}ml
-                </span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <div className="flex text-amber-400">
-                  {[...Array(5)].map((_, i) => (
-                    <svg
-                      key={i}
-                      className="w-3 h-3 fill-current"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                    </svg>
-                  ))}
-                </div>
-                <span className="text-xs text-gray-500 ml-1">(4.8)</span>
-              </div>
+            <div className="flex items-center flex-wrap gap-x-1.5 gap-y-1 mt-auto pt-2">
+              <span className="text-sm sm:text-base font-bold text-[#ffffff]">
+                {formattedPrice}
+              </span>
+              <span className="text-xs text-[#888888]">
+                {product.volume_ml}ml
+              </span>
             </div>
           </div>
         </div>

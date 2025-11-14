@@ -204,6 +204,9 @@ const AdminLayout = () => {
     [userRole]
   );
 
+  const roleLabel = roleLabels[userRole] || 'Người dùng';
+  const badgeClass = roleBadgeClasses[userRole] || 'bg-slate-100 text-slate-700';
+
   const formattedLastUpdated = lastUpdated
     ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
     : '--:--';
@@ -390,7 +393,7 @@ const AdminDashboardPage = () => {
   const isError = !isLoading && !dashboardData;
 
   const numberFormatter = useMemo(() => new Intl.NumberFormat('vi-VN'), []);
-  const currencyFormatter = useMemo(() => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }), []);
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }), []);
   const heroLastUpdated = useMemo(
     () =>
       lastUpdated
@@ -533,19 +536,19 @@ const AdminDashboardPage = () => {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+    <div className="space-y-3 sm:space-y-4 lg:space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Tổng quan hoạt động</h1>
-          <p className="text-sm sm:text-base text-slate-500 mt-1">Theo dõi tình hình kinh doanh và hiệu suất đơn hàng gần đây.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Tổng quan hoạt động</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Theo dõi tình hình kinh doanh và hiệu suất đơn hàng gần đây.</p>
         </div>
         {refetch && (
           <button
             onClick={() => refetch()}
-            className="btn-primary flex items-center justify-center space-x-2 self-start sm:self-auto w-full sm:w-auto"
+            className="btn-primary flex items-center justify-center space-x-1.5 self-start sm:self-auto w-full sm:w-auto"
           >
-            <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="text-sm sm:text-base">Làm mới dữ liệu</span>
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span className="text-xs sm:text-sm">Làm mới dữ liệu</span>
           </button>
         )}
       </div>
@@ -554,7 +557,7 @@ const AdminDashboardPage = () => {
         {isLoading ? (
           <StatsSkeleton />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -563,15 +566,15 @@ const AdminDashboardPage = () => {
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6 card-hover"
+                  className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4 card-hover"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs sm:text-sm text-slate-500 truncate">{stat.name}</p>
-                      <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-semibold text-slate-900 truncate">{stat.value}</p>
+                      <p className="text-xs text-slate-500 truncate">{stat.name}</p>
+                      <p className="mt-1 text-base sm:text-lg lg:text-xl font-semibold text-slate-900 truncate">{stat.value}</p>
                     </div>
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 ml-3 ${stat.color}`}>
-                      <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 lg:w-11 lg:h-11 rounded-lg flex items-center justify-center flex-shrink-0 ml-2 sm:ml-3 ${stat.color}`}>
+                      <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                     </div>
                   </div>
                 </motion.div>
@@ -581,8 +584,7 @@ const AdminDashboardPage = () => {
         )}
       </section>
 
-<<<<<<< HEAD
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {engagementHighlights.map((item, index) => {
           const Icon = item.icon;
           return (
@@ -591,32 +593,32 @@ const AdminDashboardPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm"
+              className="bg-white border border-slate-100 rounded-xl p-3 sm:p-4 shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-slate-500">{item.title}</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+                  <p className="mt-1.5 sm:mt-2 text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900">{item.value}</p>
                 </div>
-                <div className={`rounded-xl p-3 ${item.accent}`}>
-                  <Icon className="w-6 h-6" />
+                <div className={`rounded-lg p-2 sm:p-2.5 ${item.accent}`}>
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </div>
               </div>
-              <p className="mt-4 text-sm text-slate-500 leading-relaxed">{item.subtitle}</p>
+              <p className="mt-2 sm:mt-3 text-xs text-slate-500 leading-relaxed">{item.subtitle}</p>
             </motion.div>
           );
         })}
       </section>
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
+      <section className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-5 xl:grid-cols-3">
+        <div className="xl:col-span-2 space-y-3 sm:space-y-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Đơn hàng gần đây</h2>
-                <p className="text-sm text-slate-500">Theo dõi 5 đơn hàng mới nhất và trạng thái xử lý</p>
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900">Đơn hàng gần đây</h2>
+                <p className="text-xs text-slate-500">Theo dõi 5 đơn hàng mới nhất và trạng thái xử lý</p>
               </div>
-              <ArrowUpRight className="hidden sm:block w-5 h-5 text-amber-500" />
+              <ArrowUpRight className="hidden sm:block w-4 h-4 text-amber-500" />
             </div>
 
             {isLoading ? (
@@ -705,8 +707,8 @@ const AdminDashboardPage = () => {
             )}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">Khách hàng nổi bật</h2>
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-3 sm:mb-4">Khách hàng nổi bật</h2>
             {isLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
@@ -758,9 +760,9 @@ const AdminDashboardPage = () => {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">Feedback mới nhất</h2>
+        <div className="space-y-3 sm:space-y-4">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-3 sm:mb-4">Feedback mới nhất</h2>
             {isLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
@@ -805,193 +807,31 @@ const AdminDashboardPage = () => {
                 description="Khi khách hàng gửi feedback, bạn sẽ thấy thông tin tại đây."
               />
             )}
-=======
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-        <div className="xl:col-span-2 bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Doanh thu 7 ngày qua</h2>
-              <p className="text-xs sm:text-sm text-slate-500">Cập nhật tự động sau mỗi 30 giây</p>
-            </div>
-            <TrendingUp className="w-5 h-5 text-emerald-600 hidden sm:block" />
-          </div>
-
-          {isLoading ? (
-            <div className="h-48 sm:h-64 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-amber-600" />
-            </div>
-          ) : (
-            <div className="h-48 sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={revenueChart} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    formatter={(value) => [currencyFormatter.format(value), 'Doanh thu']}
-                    labelStyle={{ color: '#0f172a', fontWeight: 600 }}
-                    contentStyle={{
-                      backgroundColor: '#fff',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '12px'
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#f59e0b"
-                    strokeWidth={3}
-                    dot={{ r: 4, strokeWidth: 2, fill: '#f59e0b' }}
-                    activeDot={{ r: 6, stroke: '#f97316', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-900 mb-3 sm:mb-4">Thông tin nhanh</h2>
-          <div className="space-y-3 sm:space-y-4 text-xs sm:text-sm">
-            <div className="flex items-center justify-between gap-3 min-w-0">
-              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Tài khoản</span>
-              <span className="font-medium text-slate-900 text-right flex-1 min-w-0 truncate" title={dashboardData?.user?.name || '---'}>
-                {dashboardData?.user?.name || '---'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 min-w-0">
-              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Vai trò</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 whitespace-nowrap ${roleBadgeClasses[dashboardData?.user?.role] || 'bg-slate-100 text-slate-700'}`}>
-                {roleLabels[dashboardData?.user?.role] || 'Chưa xác định'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 min-w-0">
-              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Đơn hàng trong ngày</span>
-              <span className="font-medium text-slate-900 text-right flex-shrink-0 whitespace-nowrap">
-                {numberFormatter.format(dashboardData?.stats?.orders_today || 0)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 min-w-0">
-              <span className="text-slate-600 flex-shrink-0 whitespace-nowrap">Doanh thu hôm nay</span>
-              <span className="font-medium text-emerald-600 text-right flex-shrink-0 whitespace-nowrap">
-                {currencyFormatter.format(Number(dashboardData?.stats?.revenue_today || 0))}
-              </span>
-            </div>
           </div>
         </div>
-      </section>
 
-      <section className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-900">Đơn hàng gần đây</h2>
-          <span className="text-xs sm:text-sm text-slate-500">Hiển thị 5 đơn hàng mới nhất</span>
-        </div>
-
-        {isLoading ? (
-          <OrdersSkeleton />
-        ) : recentOrders.length ? (
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <div className="min-w-full inline-block align-middle">
-              {/* Desktop Table View */}
-              <table className="hidden md:table w-full">
-                <thead>
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
-                    <th className="py-3 px-4">Mã đơn hàng</th>
-                    <th className="py-3 px-4">Khách hàng</th>
-                    <th className="py-3 px-4">Tổng tiền</th>
-                    <th className="py-3 px-4">Trạng thái</th>
-                    <th className="py-3 px-4">Ngày tạo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {recentOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-4 px-4">
-                        <p className="font-semibold text-slate-900">{order.order_number}</p>
-                        <p className="text-xs text-slate-500">{order.payment_method}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="font-medium text-slate-900">{order.customer_name}</p>
-                        <p className="text-xs text-slate-500">{order.customer_email}</p>
-                      </td>
-                      <td className="py-4 px-4 font-semibold text-slate-900">
-                        {currencyFormatter.format(Number(order.total_amount || 0))}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                          statusClasses[order.status] || 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {statusLabels[order.status] || order.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-slate-500">
-                        {formatDate(order.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {/* Mobile Card View */}
-              <div className="md:hidden space-y-3 px-4 sm:px-0">
-                {recentOrders.map((order) => (
-                  <div key={order.id} className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-900 truncate">{order.order_number}</p>
-                        <p className="text-xs text-slate-500 mt-1">{order.payment_method}</p>
-                      </div>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${
-                        statusClasses[order.status] || 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {statusLabels[order.status] || order.status}
-                      </span>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Khách hàng:</span>
-                        <span className="font-medium text-slate-900 truncate ml-2">{order.customer_name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Tổng tiền:</span>
-                        <span className="font-semibold text-slate-900">{currencyFormatter.format(Number(order.total_amount || 0))}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Ngày tạo:</span>
-                        <span className="text-slate-600">{formatDate(order.created_at)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
->>>>>>> 1e93170 (fix backend and UI admin)
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">Liên hệ nhanh</h2>
-            <div className="space-y-4 text-sm text-slate-600">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
-                    <PhoneCall className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">Hotline chăm sóc khách hàng</p>
-                    <p className="text-xs text-slate-500">Hỗ trợ khách hàng VIP và phản hồi nhanh</p>
-                  </div>
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4">
+          <h2 className="text-base sm:text-lg font-semibold text-slate-900 mb-3 sm:mb-4">Liên hệ nhanh</h2>
+          <div className="space-y-4 text-sm text-slate-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-emerald-50 p-3 text-emerald-600">
+                  <PhoneCall className="w-5 h-5" />
                 </div>
-                <a
-                  href="tel:19001234"
-                  className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-200"
-                >
-                  1900 1234
-                </a>
+                <div>
+                  <p className="font-semibold text-slate-900">Hotline chăm sóc khách hàng</p>
+                  <p className="text-xs text-slate-500">Hỗ trợ khách hàng VIP và phản hồi nhanh</p>
+                </div>
               </div>
-              <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500">
-                Đừng quên ghi chú kết quả sau mỗi cuộc gọi trong phần quản lý khách hàng để đội ngũ nắm thông tin chính xác.
-              </div>
+              <a
+                href="tel:19001234"
+                className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-200"
+              >
+                1900 1234
+              </a>
+            </div>
+            <div className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500">
+              Đừng quên ghi chú kết quả sau mỗi cuộc gọi trong phần quản lý khách hàng để đội ngũ nắm thông tin chính xác.
             </div>
           </div>
         </div>
@@ -1001,11 +841,11 @@ const AdminDashboardPage = () => {
 };
 
 const StatsSkeleton = () => (
-  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:gap-5 sm:grid-cols-2 xl:grid-cols-4">
     {Array.from({ length: 4 }).map((_, index) => (
-      <div key={index} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 animate-pulse">
-        <div className="h-4 w-24 bg-slate-200 rounded mb-4" />
-        <div className="h-6 w-32 bg-slate-200 rounded" />
+      <div key={index} className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 sm:p-4 animate-pulse">
+        <div className="h-3 w-20 bg-slate-200 rounded mb-2 sm:mb-3" />
+        <div className="h-5 sm:h-6 lg:h-7 w-28 bg-slate-200 rounded" />
       </div>
     ))}
   </div>

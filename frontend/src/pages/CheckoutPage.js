@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
@@ -13,6 +13,11 @@ const CheckoutPage = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderData, setOrderData] = useState(null);
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }),
+    []
+  );
 
   const { register, handleSubmit, formState: { errors }, trigger } = useForm({
     mode: 'onTouched'
@@ -93,26 +98,26 @@ const CheckoutPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-24 sm:pt-28">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+    <div className="min-h-screen bg-[#222222] pt-20 sm:pt-24">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 sm:pb-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
+        <div className="mb-4 sm:mb-5">
           <button
             onClick={goBack}
-            className="inline-flex items-center space-x-2 text-gray-600 hover:text-amber-600 mb-4 font-semibold"
+            className="inline-flex items-center space-x-1.5 text-[#cccccc] hover:text-[#d4af37] mb-3 font-semibold text-xs sm:text-sm"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             <span>Quay lại</span>
           </button>
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Thanh toán</h1>
-            <p className="text-sm sm:text-base text-gray-600">Hoàn tất các bước bên dưới để đặt hàng an toàn với Rare Parfume.</p>
+          <div className="space-y-1.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#ffffff]">Thanh toán</h1>
+            <p className="text-xs sm:text-sm text-[#cccccc]">Hoàn tất các bước bên dưới để đặt hàng an toàn với Rare Parfume.</p>
           </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-6 sm:mb-10">
-          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
             {steps.map((step, index) => {
               const Icon = step.icon;
               const isActive = currentStep === step.id;
@@ -120,29 +125,29 @@ const CheckoutPage = () => {
               
               return (
                 <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                  <div className={`flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 ${
                     isCompleted 
-                      ? 'bg-amber-600 border-amber-600 text-white' 
+                      ? 'bg-[#d4af37] border-[#d4af37] text-[#222222]' 
                       : isActive 
-                        ? 'border-amber-600 text-amber-600' 
-                        : 'border-gray-300 text-gray-400'
+                        ? 'border-[#d4af37] text-[#d4af37]' 
+                        : 'border-[#555555] text-[#888888]'
                   }`}>
                     {isCompleted ? (
-                      <Check className="w-5 h-5" />
+                      <Check className="w-4 h-4" />
                     ) : (
-                      <Icon className="w-5 h-5" />
+                      <Icon className="w-4 h-4" />
                     )}
                   </div>
-                  <div className="ml-3">
-                    <p className={`text-sm font-medium ${
-                      isActive ? 'text-amber-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'
+                  <div className="ml-2 sm:ml-2.5">
+                    <p className={`text-xs sm:text-sm font-medium ${
+                      isActive ? 'text-[#d4af37]' : isCompleted ? 'text-[#ffffff]' : 'text-[#888888]'
                     }`}>
                       {step.title}
                     </p>
                   </div>
                   {index < steps.length - 1 && (
-                    <div className={`w-8 sm:w-16 h-0.5 mx-2 sm:mx-4 ${
-                      isCompleted ? 'bg-amber-600' : 'bg-gray-300'
+                    <div className={`w-6 sm:w-12 h-0.5 mx-1.5 sm:mx-3 ${
+                      isCompleted ? 'bg-[#d4af37]' : 'bg-[#555555]'
                     }`} />
                   )}
                 </div>
@@ -151,20 +156,20 @@ const CheckoutPage = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
           {/* Checkout Form */}
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
               {/* Step 1: Shipping Information */}
               {currentStep === 1 && (
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6"
+                  className="bg-[#222222] border border-[#555555] rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 space-y-3 sm:space-y-4"
                 >
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-bold text-gray-900">Thông tin giao hàng</h2>
-                    <p className="text-sm text-gray-600">Thông tin sẽ được bảo mật và chỉ sử dụng để giao hàng.</p>
+                  <div className="space-y-1.5">
+                    <h2 className="text-base sm:text-lg font-bold text-[#ffffff]">Thông tin giao hàng</h2>
+                    <p className="text-xs text-[#cccccc]">Thông tin sẽ được bảo mật và chỉ sử dụng để giao hàng.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,7 +265,7 @@ const CheckoutPage = () => {
 
                   <div className="space-y-2">
                     <label className="input-label" htmlFor="notes">
-                      Ghi chú cho đơn hàng <span className="text-gray-400 font-normal">(tùy chọn)</span>
+                      Ghi chú cho đơn hàng <span className="text-[#888888] font-normal">(tùy chọn)</span>
                     </label>
                     <textarea
                       id="notes"
@@ -278,15 +283,15 @@ const CheckoutPage = () => {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6"
+                  className="bg-[#222222] border border-[#555555] rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 space-y-3 sm:space-y-4"
                 >
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-bold text-gray-900">Phương thức thanh toán</h2>
-                    <p className="text-sm text-gray-600">Các giao dịch được mã hóa bằng chuẩn bảo mật SSL.</p>
+                  <div className="space-y-1.5">
+                    <h2 className="text-base sm:text-lg font-bold text-[#ffffff]">Phương thức thanh toán</h2>
+                    <p className="text-xs text-[#cccccc]">Các giao dịch được mã hóa bằng chuẩn bảo mật SSL.</p>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="border border-gray-300 rounded-lg p-4 hover:border-amber-500 transition-colors duration-300">
+                    <div className="border border-[#555555] rounded-lg p-4 hover:border-[#d4af37] transition-colors duration-300">
                       <div className="flex items-center space-x-3">
                         <input
                           type="radio"
@@ -294,37 +299,37 @@ const CheckoutPage = () => {
                           value="qr_code"
                           {...register('payment_method')}
                           defaultChecked
-                          className="text-amber-600 focus:ring-amber-500"
+                          className="text-[#d4af37] focus:ring-[#d4af37]"
                         />
                         <label htmlFor="qr_code" className="flex items-center space-x-3 cursor-pointer">
-                          <CreditCard className="w-6 h-6 text-gray-600" />
+                          <CreditCard className="w-6 h-6 text-[#d4af37]" />
                           <div>
-                            <p className="font-medium text-gray-900">Thanh toán bằng mã QR</p>
-                            <p className="text-sm text-gray-600">Quét mã QR để thanh toán nhanh chóng</p>
+                            <p className="font-medium text-[#ffffff]">Thanh toán bằng mã QR</p>
+                            <p className="text-sm text-[#cccccc]">Quét mã QR để thanh toán nhanh chóng</p>
                           </div>
                         </label>
                       </div>
                     </div>
 
                     {/* QR Code Placeholder */}
-                    <div className="mt-6 p-6 bg-gray-50 rounded-lg text-center">
-                      <div className="w-44 h-44 sm:w-48 sm:h-48 bg-white border-2 border-dashed border-gray-300 rounded-lg mx-auto flex items-center justify-center mb-4">
+                    <div className="mt-6 p-6 bg-[#333333] rounded-lg text-center">
+                      <div className="w-44 h-44 sm:w-48 sm:h-48 bg-[#222222] border-2 border-dashed border-[#555555] rounded-lg mx-auto flex items-center justify-center mb-4">
                         <div className="text-center">
-                          <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-500">Mã QR sẽ hiển thị ở đây</p>
+                          <CreditCard className="w-12 h-12 text-[#888888] mx-auto mb-2" />
+                          <p className="text-sm text-[#888888]">Mã QR sẽ hiển thị ở đây</p>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-[#cccccc]">
                         Quét mã QR bằng ứng dụng ngân hàng để thanh toán
                       </p>
                     </div>
 
                     {/* Security Notice */}
-                    <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-lg border border-green-100">
-                      <Shield className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start space-x-3 p-4 bg-green-500/20 rounded-lg border border-green-500/30">
+                      <Shield className="w-5 h-5 text-green-400 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium text-green-800">Thanh toán an toàn</p>
-                        <p className="text-xs text-green-700 mt-1">
+                        <p className="text-sm font-medium text-green-400">Thanh toán an toàn</p>
+                        <p className="text-xs text-green-400/80 mt-1">
                           Thông tin thanh toán của bạn được mã hóa và bảo mật
                         </p>
                       </div>
@@ -338,18 +343,18 @@ const CheckoutPage = () => {
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6"
+                  className="bg-[#222222] border border-[#555555] rounded-xl shadow-xl p-3 sm:p-4 lg:p-5 space-y-3 sm:space-y-4"
                 >
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-bold text-gray-900">Xác nhận đơn hàng</h2>
-                    <p className="text-sm text-gray-600">Vui lòng kiểm tra kỹ thông tin trước khi hoàn tất.</p>
+                  <div className="space-y-1.5">
+                    <h2 className="text-base sm:text-lg font-bold text-[#ffffff]">Xác nhận đơn hàng</h2>
+                    <p className="text-xs text-[#cccccc]">Vui lòng kiểm tra kỹ thông tin trước khi hoàn tất.</p>
                   </div>
 
                   {/* Order Summary */}
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-gray-900">Tóm tắt đơn hàng</h3>
+                    <h3 className="font-semibold text-[#ffffff]">Tóm tắt đơn hàng</h3>
                     {items.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between py-2 border-b border-gray-200">
+                      <div key={item.id} className="flex items-center justify-between py-2 border-b border-[#555555]">
                         <div className="flex items-center space-x-3">
                           <img
                             src={item.image}
@@ -358,31 +363,31 @@ const CheckoutPage = () => {
                             loading="lazy"
                           />
                           <div>
-                            <p className="font-medium text-gray-900">{item.name}</p>
-                            <p className="text-sm text-gray-600">{item.brand} • {item.volume_ml}ml</p>
+                            <p className="font-medium text-[#ffffff]">{item.name}</p>
+                            <p className="text-sm text-[#cccccc]">{item.brand} • {item.volume_ml}ml</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-gray-900">${item.price}</p>
-                          <p className="text-sm text-gray-600">x{item.quantity}</p>
+                          <p className="font-medium text-[#ffffff]">{currencyFormatter.format(Number(item.price || 0))}</p>
+                          <p className="text-sm text-[#cccccc]">x{item.quantity}</p>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Total */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex justify-between text-lg font-bold text-gray-900">
+                  <div className="border-t border-[#555555] pt-4">
+                    <div className="flex justify-between text-lg font-bold text-[#ffffff]">
                       <span>Tổng cộng</span>
-                      <span>${getTotalPrice().toFixed(2)}</span>
+                      <span>{currencyFormatter.format(Number(getTotalPrice() || 0))}</span>
                     </div>
                   </div>
 
                   {/* Customer Info */}
                   {orderData && (
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h3 className="font-semibold text-gray-900 mb-2">Thông tin giao hàng</h3>
-                      <div className="space-y-1 text-sm text-gray-600">
+                    <div className="p-4 bg-[#333333] rounded-lg border border-[#555555]">
+                      <h3 className="font-semibold text-[#ffffff] mb-2">Thông tin giao hàng</h3>
+                      <div className="space-y-1 text-sm text-[#cccccc]">
                         <p><strong>Tên:</strong> {orderData.customer_name}</p>
                         <p><strong>Email:</strong> {orderData.customer_email}</p>
                         <p><strong>SĐT:</strong> {orderData.customer_phone}</p>
@@ -418,10 +423,10 @@ const CheckoutPage = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-xl p-5 sticky top-28 space-y-6">
+            <div className="bg-[#222222] border border-[#555555] rounded-xl shadow-xl p-3 sm:p-4 sticky top-24 space-y-3 sm:space-y-4">
               <div className="space-y-1">
-                <h2 className="text-xl font-bold text-gray-900">Đơn hàng của bạn</h2>
-                <p className="text-sm text-gray-600">{getTotalItems()} sản phẩm đang chờ thanh toán.</p>
+                <h2 className="text-base sm:text-lg font-bold text-[#ffffff]">Đơn hàng của bạn</h2>
+                <p className="text-xs text-[#cccccc]">{getTotalItems()} sản phẩm đang chờ thanh toán.</p>
               </div>
 
               <div className="space-y-3">
@@ -434,29 +439,29 @@ const CheckoutPage = () => {
                       loading="lazy"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{item.name}</p>
-                      <p className="text-sm text-gray-600">{item.brand}</p>
+                      <p className="font-medium text-[#ffffff] truncate">{item.name}</p>
+                      <p className="text-sm text-[#cccccc]">{item.brand}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-gray-900">${item.price}</p>
-                      <p className="text-sm text-gray-600">x{item.quantity}</p>
+                      <p className="font-medium text-[#ffffff]">{currencyFormatter.format(Number(item.price || 0))}</p>
+                      <p className="text-sm text-[#cccccc]">x{item.quantity}</p>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="border-t border-gray-200 pt-4 space-y-3">
-                <div className="flex justify-between text-base text-gray-700">
+              <div className="border-t border-[#555555] pt-4 space-y-3">
+                <div className="flex justify-between text-base text-[#eeeeee]">
                   <span>Tạm tính</span>
-                  <span>${getTotalPrice().toFixed(2)}</span>
+                  <span>{currencyFormatter.format(Number(getTotalPrice() || 0))}</span>
                 </div>
-                <div className="flex justify-between text-base text-gray-700">
+                <div className="flex justify-between text-base text-[#eeeeee]">
                   <span>Phí vận chuyển</span>
-                  <span className="text-emerald-600">Miễn phí</span>
+                  <span className="text-green-400">Miễn phí</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold text-gray-900">
+                <div className="flex justify-between text-lg font-bold text-[#ffffff]">
                   <span>Tổng cộng</span>
-                  <span>${getTotalPrice().toFixed(2)}</span>
+                  <span>{currencyFormatter.format(Number(getTotalPrice() || 0))}</span>
                 </div>
               </div>
             </div>

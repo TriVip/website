@@ -76,7 +76,7 @@ const AdminOrdersPage = () => {
   const toItem = Math.min(currentPage * pageSize, totalCount);
 
   const currencyFormatter = useMemo(
-    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }),
+    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }),
     []
   );
 

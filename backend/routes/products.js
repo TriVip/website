@@ -168,8 +168,8 @@ router.get('/', [
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
+        total_count: total,
+        total_pages: Math.ceil(total / limit)
       }
     });
 

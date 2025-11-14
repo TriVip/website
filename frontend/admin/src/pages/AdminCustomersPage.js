@@ -424,7 +424,7 @@ const InfoRow = ({ icon: Icon, label, value }) => (
 const formatCurrency = (value) => {
   const formatter = new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'VND'
   });
   return formatter.format(Number(value || 0));
 };

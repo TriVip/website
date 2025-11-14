@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, Package, Clock, MapPin } from 'lucide-react';
@@ -13,6 +13,11 @@ const OrderConfirmationPage = () => {
     {
       enabled: !!orderNumber,
     }
+  );
+
+  const currencyFormatter = useMemo(
+    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }),
+    []
   );
 
   if (isLoading) {
@@ -118,7 +123,7 @@ const OrderConfirmationPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Tổng tiền:</span>
-                  <span className="font-medium text-lg">${order.total_amount}</span>
+                  <span className="font-medium text-lg">{currencyFormatter.format(Number(order.total_amount || 0))}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Phương thức thanh toán:</span>
@@ -180,9 +185,9 @@ const OrderConfirmationPage = () => {
                   <p className="text-sm text-gray-600">Số lượng: {item.quantity}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-gray-900">${item.price_at_purchase}</p>
+                  <p className="font-medium text-gray-900">{currencyFormatter.format(Number(item.price_at_purchase || 0))}</p>
                   <p className="text-sm text-gray-600">
-                    Tổng: ${(item.price_at_purchase * item.quantity).toFixed(2)}
+                    Tổng: {currencyFormatter.format(Number((item.price_at_purchase * item.quantity) || 0))}
                   </p>
                 </div>
               </div>
@@ -192,7 +197,7 @@ const OrderConfirmationPage = () => {
           <div className="mt-6 pt-6 border-t border-gray-200">
             <div className="flex justify-between text-lg font-bold text-gray-900">
               <span>Tổng cộng</span>
-              <span>${order.total_amount}</span>
+              <span>{currencyFormatter.format(Number(order.total_amount || 0))}</span>
             </div>
           </div>
         </motion.div>

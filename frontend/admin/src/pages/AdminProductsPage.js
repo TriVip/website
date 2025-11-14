@@ -60,7 +60,7 @@ const AdminProductsPage = () => {
   const pagination = productsData?.pagination || {};
   const pageSize = pagination.limit || 10;
   const currencyFormatter = useMemo(
-    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'USD' }),
+    () => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }),
     []
   );
 

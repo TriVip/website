@@ -37,26 +37,38 @@ app.use(limiter);
 // CORS configuration - Restrictive by default
 const corsOptions = {
   origin(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) {
       return callback(null, true);
     }
 
     const normalizedOrigin = origin.replace(/\/$/, '');
 
+    // Check if origin is in allowed list
     if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
 
+    // In development, allow all origins if configured to do so
     if (allowAllInDev) {
-      console.warn(`⚠️  Allowing non-whitelisted CORS origin in development: ${origin}`);
+      console.log(`✅ Allowing CORS origin in development: ${origin}`);
       return callback(null, true);
     }
 
+    // Additional check: if in development and origin is localhost, allow it
+    if (!isProduction && (normalizedOrigin.includes('localhost') || normalizedOrigin.includes('127.0.0.1'))) {
+      console.log(`✅ Allowing localhost origin in development: ${origin}`);
+      return callback(null, true);
+    }
+
+    // Log blocked origin for debugging
     console.warn(`🚫 Blocked request from disallowed origin: ${origin}`);
+    console.warn(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+    console.warn(`   Is production: ${isProduction}, Allow all in dev: ${allowAllInDev}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 

@@ -61,7 +61,8 @@ api.interceptors.response.use(
 export const fetchProducts = async (params = {}) => {
   try {
     const response = await api.get('/products', { params });
-    return response.data.products || [];
+    // Backend returns { products: [...], pagination: {...} }
+    return response.data || { products: [], pagination: {} };
   } catch (error) {
     console.error('Error fetching products:', error);
     throw error;
